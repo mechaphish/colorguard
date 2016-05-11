@@ -17,6 +17,7 @@ class ColorGuardTransmitHook(simuvex.procedures.cgc.transmit.transmit):
         for var in list(data.variables):
             # did we find a leak?
             if var.split("_")[0] == 'cgc-flag-data':
-                raise FlagLeakDetected
+                raise FlagLeakDetected(data)
 
+        # run the actual transmit simprocedure
         return super(ColorGuardTransmitHook, self).run(fd, buf, count, tx_bytes)
