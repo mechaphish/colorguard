@@ -1,0 +1,12 @@
+before_script:
+    - angr-test sync hard
+
+### local
+colorguard:
+    script: "angr-test colorguard"
+    tags: [angr]
+
+lint:
+    script: "angr-test lint"
+    tags: [angr]
+
