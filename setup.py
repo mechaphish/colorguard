@@ -7,7 +7,7 @@ setup(
       packages=['colorguard'],
       install_requires=[
             'tracer',
-            'claripy',
+            'harvester',
             'simuvex'
       ],
 )
