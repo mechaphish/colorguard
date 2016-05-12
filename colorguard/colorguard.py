@@ -1,5 +1,5 @@
 import tracer
-import claripy
+import harvester
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
 
@@ -17,7 +17,7 @@ class ColorGuard(object):
         :param icontent: concrete input string to feed to the binary
         """
 
-        self._tracer = tracer.Tracer(binary, icontent, simprocedures={'transmit': ColorGuardTransmitHook})
+        self._tracer = tracer.Tracer(binary, icontent, preconstrain=False, simprocedures={'transmit': ColorGuardTransmitHook})
 
 
         # fix up the tracer so that it the input is completely concrete
@@ -29,11 +29,30 @@ class ColorGuard(object):
 
         e_path.state.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(icontent))
 
+        self.sym_bytes = [ ]
+
     def causes_leak(self):
 
         try:
             self._tracer.run()
-        except FlagLeakDetected:
+        except FlagLeakDetected as fld:
+            self.sym_bytes.append(fld.args[0])
             return True
 
         return False
+
+    def attempt_leak(self):
+
+        assert len(self.sym_bytes) > 0, "run causes_leak before attempting to exploit"
+
+        # TODO: detect if we have four contiguous bytes
+
+        sym_bytes = self.sym_bytes[0]
+
+        # convert to C code
+        h = harvester.Harvester(sym_bytes)
+        h.reverse()
+
+        code = h.to_c()
+
+        # TODO: make into a pov
