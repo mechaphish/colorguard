@@ -6,6 +6,7 @@ setup(
       version='0.01',
       packages=['colorguard'],
       install_requires=[
+            'rex',
             'tracer',
             'harvester',
             'simuvex'
