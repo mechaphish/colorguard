@@ -71,6 +71,24 @@ size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
 }
 
 /*
+ * Reverse an integer, same as converting endianness.
+ * n is always expected to be 4 at the moment.
+ */
+int reverse(int to_reverse, size_t n)
+{
+  int new_int = 0;
+
+  if (n == 4) {
+    new_int |= (to_reverse >> 24) & 0xff;
+    new_int |= ((to_reverse >> 16) & 0xff) << 8;
+    new_int |= ((to_reverse >> 8) & 0xff) << 16;
+    new_int |= (to_reverse & 0xff) << 24;
+  }
+
+  return new_int;
+}
+
+/*
  * Receive n_bytes into no particular buffer.
  */
 size_t blank_receive( int fd, size_t n_bytes )
@@ -185,7 +203,7 @@ int main() {
 
   {transformation_code}
 
-  type2_submit(&flag, t2vals.read_size);
+  type2_submit((unsigned char *)&flag, t2vals.read_size);
 
   return 0;
 }

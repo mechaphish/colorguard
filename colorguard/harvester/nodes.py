@@ -52,7 +52,7 @@ class NodeTree(object):
 
     def _concat_to_c(self):
 
-        statements = [ ]
+        statements = ["int root, flag;", "root = flag = 0;"]
         for size, op in self.root.operands:
 
             statement = None
@@ -71,7 +71,7 @@ class NodeTree(object):
                 if end_byte != start_byte:
                     b_str = '_'.join(range(start_byte, end_byte))
 
-                statement += "flag_byte_" + b_str + " = "
+                statement += "int flag_byte_" + b_str + " = "
                 statement += op.to_statement() + ";"
 
             statements.append(statement)
@@ -82,7 +82,7 @@ class NodeTree(object):
 
         # if it's an extract statement we already know it needs to have all the bytes
 
-        statements = [ ]
+        statements = ["int root, flag;", "root = flag = 0;"]
         statements.append("receive(0, &{}, 4, NULL);".format('root'))
         statements.append("flag = " + self.root.to_statement() + ";")
         return "\n".join(statements)
@@ -154,9 +154,8 @@ class NodeTree(object):
                 continue
 
             # found four consecutive bytes
-            statements.append("int flag = 0;")
             for j in range(0, 4):
-                statements.append("flag |= " + "flag_byte_{} << {};".format(current_byte_idx + j, 8 * (3-j)))
+                statements.append("flag |= " + "flag_byte_{} << {};".format(current_byte_idx + j, 8 * j))
 
             break
 
@@ -188,7 +187,8 @@ class ReverseNode(Node):
 
     def to_statement(self):
         a_t = self.arg.to_statement()
-        return "reverse({0}, {1})".format(a_t, self.size / 8)
+        #return "reverse({0}, {1})".format(a_t, self.size / 8)
+        return "{0}".format(a_t)
 
 class BVVNode(Node):
     def __init__(self, arg):

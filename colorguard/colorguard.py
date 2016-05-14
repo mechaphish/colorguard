@@ -15,6 +15,7 @@ class ColorGuard(object):
         :param payload: concrete input string to feed to the binary
         """
 
+        self.binary = binary
         self.payload = payload
         self._tracer = tracer.Tracer(binary, payload, preconstrain=False)
 
@@ -52,6 +53,4 @@ class ColorGuard(object):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
-        type2 = ColorguardType2Exploit(self.payload, self.leak_ast)
-
-        return type2.dump_c()
+        return ColorguardType2Exploit(self.binary, self.payload, self.leak_ast)
