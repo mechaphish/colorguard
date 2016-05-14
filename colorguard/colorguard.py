@@ -1,5 +1,5 @@
 import tracer
-from .harvester import Harvester
+from .pov import ColorguardType2Exploit
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
 
@@ -9,22 +9,23 @@ class ColorGuard(object):
     Most logic is offloaded to the tracer.
     """
 
-    def __init__(self, binary, icontent):
+    def __init__(self, binary, payload):
         """
         :param binary: path to the binary which is suspect of leaking
-        :param icontent: concrete input string to feed to the binary
+        :param payload: concrete input string to feed to the binary
         """
 
-        self._tracer = tracer.Tracer(binary, icontent, preconstrain=False)
+        self.payload = payload
+        self._tracer = tracer.Tracer(binary, payload, preconstrain=False)
 
         # fix up the tracer so that it the input is completely concrete
         e_path = self._tracer.path_group.active[0]
 
         backing = SimSymbolicMemory(memory_id='file_colorguard')
         backing.set_state(e_path.state)
-        backing.store(0, e_path.state.se.BVV(icontent))
+        backing.store(0, e_path.state.se.BVV(payload))
 
-        e_path.state.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(icontent))
+        e_path.state.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(payload))
         e_path.state._colorguard = self
 
         self.leak_ast = None
@@ -47,18 +48,10 @@ class ColorGuard(object):
 
         return False
 
-    def attempt_leak(self):
+    def attempt_pov(self):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
-        # convert to C code
+        type2 = ColorguardType2Exploit(self.payload, self.leak_ast)
 
-        h = Harvester(self.leak_ast)
-        node_tree = h.reverse()
-
-        assert len(node_tree.leaked_bytes()) >= 4, "leak did not reveal 4 bytes of the flag page"
-
-        code = node_tree.to_c()
-
-        # TODO: make into a pov
-        return code
+        return type2.dump_c()

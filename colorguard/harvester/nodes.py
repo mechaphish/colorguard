@@ -1,6 +1,3 @@
-
-throw_away_loop = "for(i=0;i<{};i++) receive(0, &junk_byte, 1, NULL);"
-
 class NodeTree(object):
     """
     Tree of node objects, responsible for turning operation nodes into C code.
@@ -61,7 +58,7 @@ class NodeTree(object):
             statement = None
             if isinstance(op, BVVNode):
                 # read and throw away
-                statement = throw_away_loop.format(size / 8)
+                statement = "blank_receive(0, {});".format(size / 8)
             else:
                 # find extract to determine which flag byte
                 statement  = "receive(0, &{}, {}, NULL);\n".format('root', size / 8)
@@ -75,7 +72,7 @@ class NodeTree(object):
                     b_str = '_'.join(range(start_byte, end_byte))
 
                 statement += "flag_byte_" + b_str + " = "
-                statement += op.to_statement()
+                statement += op.to_statement() + ";"
 
             statements.append(statement)
 
