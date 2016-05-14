@@ -111,6 +111,7 @@ class NodeTree(object):
         """
 
         lbytes = [ ]
+        op = None # silence pylint
         for _, op in self.root.operands:
 
             node = self._find_node(op, ExtractNode)
@@ -246,4 +247,4 @@ class ConcatNode(Node):
         self.operands = operands
 
     def to_statement(self):
-        assert False, "should never be called directly"
+        raise NotImplementedError, "this should not be called"
