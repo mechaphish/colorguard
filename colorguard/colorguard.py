@@ -1,5 +1,5 @@
 import tracer
-import harvester
+from .harvester import Harvester
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
 
@@ -53,13 +53,12 @@ class ColorGuard(object):
 
         # convert to C code
 
-        print self.leak_ast
-        h = harvester.Harvester(self.leak_ast)
-        result = h.reverse()
+        h = Harvester(self.leak_ast)
+        node_tree = h.reverse()
 
-        print result.leaked_bytes()
+        assert len(node_tree.leaked_bytes()) >= 4, "leak did not reveal 4 bytes of the flag page"
 
-        code = h.to_c(result)
+        code = node_tree.to_c()
 
         # TODO: make into a pov
         return code
