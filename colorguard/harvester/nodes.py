@@ -9,7 +9,7 @@ class NodeTree(object):
             raise ValueError("only ConcatNodes or ExtractNodes can be tree roots")
 
         self.root = node_root
-
+        self.created_vars = set()
 
     @staticmethod
     def _to_byte_idx(idx):
@@ -53,6 +53,7 @@ class NodeTree(object):
     def _concat_to_c(self):
 
         statements = ["int root, flag;", "root = flag = 0;"]
+        need_vars = [ ]
         for size, op in self.root.operands:
 
             statement = None
@@ -65,18 +66,21 @@ class NodeTree(object):
 
                 enode = self._find_node(op, ExtractNode)
                 start_byte = NodeTree._to_byte_idx(enode.end_index)
-                end_byte = NodeTree._to_byte_idx(enode.start_index)
+                end_byte = NodeTree._to_byte_idx(enode.start_index) + 1
 
-                b_str = str(end_byte)
-                if end_byte != start_byte:
-                    b_str = '_'.join(range(start_byte, end_byte))
+                b_str = str(start_byte)
+                if start_byte != end_byte - 1:
+                    b_str = '_'.join(map(str, range(start_byte, end_byte)))
+
+                need_vars.append(("flag_byte_%s" % b_str, range(start_byte, end_byte)))
+                self.created_vars.add(tuple(range(start_byte, end_byte)))
 
                 statement += "int flag_byte_" + b_str + " = "
                 statement += op.to_statement() + ";"
 
             statements.append(statement)
 
-        return '\n'.join(statements) + "\n" + self._concat_combine_bytes()
+        return '\n'.join(statements) + "\n" + self._concat_combine_bytes(need_vars)
 
     def _extract_to_c(self):
 
@@ -116,7 +120,7 @@ class NodeTree(object):
                 start_byte = NodeTree._to_byte_idx(node.end_index)
                 end_byte = NodeTree._to_byte_idx(node.start_index)
 
-                bs = [start_byte] + range(start_byte, end_byte)
+                bs = range(start_byte, end_byte+1)
 
                 lbytes  += map(lambda y: (y, op), bs)
 
@@ -132,9 +136,31 @@ class NodeTree(object):
 
         return map(lambda y: (y, self.root), [start_byte] + range(start_byte + 1, end_byte + 1))
 
-    def _concat_combine_bytes(self):
+    def _to_single_byte_vars(self, need_vars):
+
+        created_singletons = set()
+        for varset in self.created_vars:
+            if len(varset) == 1:
+                created_singletons.add(varset[0])
 
         statements = [ ]
+
+        __import__("ipdb").set_trace()
+        for varname, varset in need_vars:
+            for i, var in enumerate(varset):
+
+                if not var in created_singletons:
+                    statement  = "int flag_byte_%d = " % var
+                    statement += "(%s & (0xff << %d)) >> %d;" % (varname, i * 8, i * 8)
+                    statements.append(statement)
+                    created_singletons.add(var)
+
+        return statements
+
+    def _concat_combine_bytes(self, need_vars):
+
+        statements = self._to_single_byte_vars(need_vars)
+
         ordered_bytes = sorted(self.leaked_bytes())
         for i, current_byte in enumerate(ordered_bytes):
             # check if the next four bytes leak the subsequent bytes
