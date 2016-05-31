@@ -49,6 +49,19 @@ def test_simple_leak4():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_big_leak():
+    """
+    Test detection of a leak where 0x8000 concrete bytes are written to stdout before a the secret is leaked.
+    This used to cause a bug because of limits placed on how much data could be loaded from a SymbolicMemoryRegion.
+    """
+
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/big_leak'), 'foobar')
+
+    nose.tools.assert_true(cg.causes_leak())
+    pov = cg.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
+
+
 def run_all():
     functions = globals()
     all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
