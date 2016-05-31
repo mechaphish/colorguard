@@ -165,7 +165,7 @@ class NodeTree(object):
         statements = self._to_single_byte_vars(need_vars)
 
         ordered_bytes = dict(self.leaked_bytes())
-        for i, current_byte in enumerate(ordered_bytes):
+        for current_byte in ordered_bytes:
             # check if the next four bytes leak the subsequent bytes
             current_byte_idx = current_byte
 
