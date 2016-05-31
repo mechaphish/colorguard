@@ -73,9 +73,13 @@ class NodeTree(object):
                     b_str = '_'.join(map(str, range(start_byte, end_byte)))
 
                 need_vars.append(("flag_byte_%s" % b_str, range(start_byte, end_byte)))
-                self.created_vars.add(tuple(range(start_byte, end_byte)))
 
-                statement += "int flag_byte_" + b_str + " = "
+                byte_rep = tuple(range(start_byte, end_byte))
+                if byte_rep not in self.created_vars:
+                    statement += "int "
+                    self.created_vars.add(byte_rep)
+
+                statement += "flag_byte_" + b_str + " = "
                 statement += op.to_statement() + ";"
 
             statements.append(statement)
@@ -160,19 +164,17 @@ class NodeTree(object):
 
         statements = self._to_single_byte_vars(need_vars)
 
-        ordered_bytes = sorted(self.leaked_bytes())
+        ordered_bytes = dict(self.leaked_bytes())
         for i, current_byte in enumerate(ordered_bytes):
             # check if the next four bytes leak the subsequent bytes
-            current_byte_idx = current_byte[0]
+            current_byte_idx = current_byte
 
-            try:
-                next_consec = True
-                for j in range(1,4):
-                    if current_byte_idx + j != ordered_bytes[i+j][0]:
-                        next_consec = False
-                        break
-            except IndexError:
-                raise ValueError("no consecutive four bytes")
+            next_consec = True
+
+            for j in range(1,4):
+                if not current_byte+j in ordered_bytes:
+                    next_consec = False
+                    break
 
             # try again
             if not next_consec:
