@@ -145,7 +145,6 @@ class NodeTree(object):
 
         statements = [ ]
 
-        __import__("ipdb").set_trace()
         for varname, varset in need_vars:
             for i, var in enumerate(varset):
 
