@@ -61,6 +61,20 @@ def test_big_leak():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_double_leak():
+    """
+    Test detection of a leak where the same bytes are leaked twice. Once they are leaked in a reversable operation,
+    the second time they are leaked the operation is not reversible.
+    This should test the ability for colorguard to only choose attempting to reverse the the operation which we know
+    is reversable.
+    """
+
+    payload = "320a310a0100000005000000330a330a340a".decode('hex')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'shellphish/PIZZA_00001'), payload)
+
+    nose.tools.assert_true(cg.causes_leak())
+    pov = cg.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
 
 def run_all():
     functions = globals()
