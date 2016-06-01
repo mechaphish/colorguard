@@ -50,14 +50,25 @@ class NodeTree(object):
 
         return c_code
 
+    def _single_sided(self, op):
+        """
+        Check if a an AST contains the flag page on only one sided
+        :param op: Node representing the operation to test
+        :return: boolean whether symbolic data is only on a single side
+        """
+
+
     def _concat_to_c(self):
 
-        statements = ["int root, flag;", "root = flag = 0;"]
+        statements = ["\nint root, flag;", "root = flag = 0;"]
         need_vars = [ ]
         for size, op in self.root.operands:
 
             statement = None
-            if isinstance(op, BVVNode):
+            # we can get operations where flag data is on both sides of arithmetic operation
+            # these are not always impossible to reverse (for example flag_data + flag_data)
+            # TODO: but im too lazy to special case these at the moment
+            if isinstance(op, BVVNode) or op._symbolic_sides() > 1:
                 # read and throw away
                 statement = "blank_receive(0, {});".format(size / 8)
             else:
@@ -90,7 +101,7 @@ class NodeTree(object):
 
         # if it's an extract statement we already know it needs to have all the bytes
 
-        statements = ["int root, flag;", "root = flag = 0;"]
+        statements = ["\nint root, flag;", "root = flag = 0;"]
         statements.append("receive(0, &{}, 4, NULL);".format('root'))
         statements.append("flag = " + self.root.to_statement() + ";")
         return "\n".join(statements)
@@ -192,7 +203,37 @@ class NodeTree(object):
         return '\n'.join(statements)
 
 class Node(object):
-    pass
+
+    def _symbolic_sides(self):
+        raise NotImplementedError("It is the responsibilty of subclasses to implement this method")
+
+class UnOp(Node):
+
+    def __init__(self, arg):
+        self.arg = arg
+
+    def _symbolic_sides(self):
+        return self.arg._symbolic_sides()
+
+class BVVNode(UnOp):
+    def __init__(self, arg):
+        super(BVVNode, self).__init__(arg)
+
+    def to_statement(self):
+        return "{0:#x}".format(self.arg)
+
+    def _symbolic_sides(self):
+        return 0
+
+class BVSNode(UnOp):
+    def __init__(self, arg):
+        super(BVSNode, self).__init__(arg)
+
+    def to_statement(self):
+        return self.arg
+
+    def _symbolic_sides(self):
+        return 1
 
 class BinOpNode(Node):
 
@@ -206,30 +247,8 @@ class BinOpNode(Node):
         a2_t = self.arg2.to_statement()
         return "({0} {1} {2})".format(a1_t, self.op_str, a2_t)
 
-class ReverseNode(Node):
-
-    def __init__(self, arg, size):
-        self.size = size
-        self.arg = arg
-
-    def to_statement(self):
-        a_t = self.arg.to_statement()
-        #return "reverse({0}, {1})".format(a_t, self.size / 8)
-        return "{0}".format(a_t)
-
-class BVVNode(Node):
-    def __init__(self, arg):
-        self.arg = arg
-
-    def to_statement(self):
-        return "{0:#x}".format(self.arg)
-
-class BVSNode(Node):
-    def __init__(self, arg):
-        self.arg = arg
-
-    def to_statement(self):
-        return self.arg
+    def _symbolic_sides(self):
+        return self.arg1._symbolic_sides() + self.arg2._symbolic_sides()
 
 class AddNode(BinOpNode):
 
@@ -250,10 +269,10 @@ class AndNode(BinOpNode):
     def __init__(self, arg1, arg2):
         super(AndNode, self).__init__('&', arg1, arg2)
 
-class ExtractNode(Node):
+class ExtractNode(UnOp):
 
     def __init__(self, arg, start_index, end_index):
-        self.arg = arg
+        super(ExtractNode, self).__init__(arg)
         self.start_index = start_index
         self.end_index = end_index
 
@@ -265,6 +284,17 @@ class ExtractNode(Node):
         a_t = self.arg.to_statement()
         return "{0}".format(a_t)
 
+class ReverseNode(UnOp):
+
+    def __init__(self, arg, size):
+        super(ReverseNode, self).__init__(arg)
+        self.size = size
+
+    def to_statement(self):
+        a_t = self.arg.to_statement()
+        #return "reverse({0}, {1})".format(a_t, self.size / 8)
+        return "{0}".format(a_t)
+
 class ConcatNode(Node):
 
     def __init__(self, operands):
@@ -272,3 +302,7 @@ class ConcatNode(Node):
 
     def to_statement(self):
         raise NotImplementedError, "this should not be called"
+
+    def _symbolic_sides(self):
+        """symbolicness does not matter in this case"""
+        return 0
