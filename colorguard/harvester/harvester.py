@@ -57,29 +57,30 @@ class Harvester(object):
         # two args, one is a constant
         if op == '__add__':
 
-            arg, data = Harvester.determine_args(ast.args)
+            new_root = root
+            args = ast.args[1:]
+            for arg in args:
+                new_root = SubNode(new_root, self._reverse_inner(root, arg))
 
-            new_root = SubNode(root, self._reverse_inner(root, arg))
+            data = self._reverse_inner(new_root, ast.args[0])
 
-            data = self._reverse_inner(new_root, data)
-
-        # two args, one is a constant
         if op == '__sub__':
 
-            arg, data = Harvester.determine_args(ast.args)
+            new_root = root
+            args = ast.args[1:]
+            for arg in args:
+                new_root = AddNode(new_root, self._reverse_inner(root, arg))
 
-            new_root = AddNode(root, self._reverse_inner(root, arg))
+            data = self._reverse_inner(new_root, ast.args[0])
 
-            data = self._reverse_inner(new_root, data)
-
-        # two args, one is a constant
         if op == '__xor__':
 
-            arg, data = Harvester.determine_args(ast.args)
+            new_root = root
+            args = ast.args[1:]
+            for arg in args:
+                new_root = XorNode(new_root, self._reverse_inner(root, arg))
 
-            new_root = XorNode(root, self._reverse_inner(root, arg))
-
-            data = self._reverse_inner(new_root, data)
+            data = self._reverse_inner(new_root, ast.args[0])
 
         ### FUNCTIONS
 
