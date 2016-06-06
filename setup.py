@@ -8,7 +8,6 @@ setup(
       install_requires=[
             'rex',
             'tracer',
-            'harvester',
             'simuvex'
       ],
 )
