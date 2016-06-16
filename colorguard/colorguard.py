@@ -43,7 +43,7 @@ class ColorGuard(object):
         cache_tuple = self._cache_lookup_hook()
 
         simprocedures = {'receive': CacheReceive}
-        self._tracer = tracer.Tracer(binary, payload, preconstrain=False, simprocedures=simprocedures)
+        self._tracer = tracer.Tracer(binary, payload, simprocedures=simprocedures)
 
         # fix up the tracer so that it the input is completely concrete
         if cache_tuple is None:
