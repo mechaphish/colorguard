@@ -39,6 +39,7 @@ class ColorGuard(object):
         self._cache_file = None
 
         receive.cache_hook = self._cache_hook
+        self.loaded_from_cache = False
         cache_tuple = self._cache_lookup_hook()
 
         simprocedures = {'receive': CacheReceive}
@@ -81,6 +82,9 @@ class ColorGuard(object):
 
         if os.path.exists(self._cache_file):
             l.info('loading state from cache file %s', self._cache_file)
+
+            # just for the testcase
+            self.loaded_from_cache = True
 
             # disable the cache_hook if we were able to load from the cache_file
             receive.cache_hook = None
