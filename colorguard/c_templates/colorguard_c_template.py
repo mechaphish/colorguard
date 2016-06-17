@@ -203,6 +203,7 @@ int main() {
 
   {transformation_code}
 
+  flag = reverse(flag, 4);
   type2_submit((unsigned char *)&flag, t2vals.read_size);
 
   return 0;

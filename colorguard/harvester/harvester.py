@@ -91,8 +91,10 @@ class Harvester(object):
             new_root = ExtractNode(root, start_index, end_index)
 
             data = self._reverse_inner(new_root, ast.args[2])
-            data = new_root
 
+            # special case if the extract is on the flag page
+            if isinstance(data, BVSNode):
+                data = new_root
 
         # only one arg
         if op == 'Reverse':
@@ -103,7 +105,7 @@ class Harvester(object):
 
         ### SPECIAL
 
-        if op == 'SignExt':
+        if op == 'SignExt' or op == 'ZeroExt':
             # this consists of just removing the sign extension by anding with the
             # none extended bits
 

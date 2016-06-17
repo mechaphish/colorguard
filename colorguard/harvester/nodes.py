@@ -62,6 +62,7 @@ class NodeTree(object):
 
         statements = ["\nint root, flag;", "root = flag = 0;"]
         need_vars = [ ]
+
         for size, op in self.root.operands:
 
             statement = None
@@ -74,6 +75,7 @@ class NodeTree(object):
             else:
                 # find extract to determine which flag byte
                 statement  = "receive(0, &{}, {}, NULL);\n".format('root', size / 8)
+                statement += "{} = reverse({}, 4);\n".format('root', 'root')
 
                 enode = self._find_node(op, ExtractNode)
                 start_byte = NodeTree._to_byte_idx(enode.end_index)
@@ -103,6 +105,7 @@ class NodeTree(object):
 
         statements = ["\nint root, flag;", "root = flag = 0;"]
         statements.append("receive(0, &{}, 4, NULL);".format('root'))
+        statements.append("{} = reverse({}, 4);".format('root', 'root'))
         statements.append("flag = " + self.root.to_statement() + ";")
         return "\n".join(statements)
 
@@ -165,7 +168,7 @@ class NodeTree(object):
 
                 if not var in created_singletons:
                     statement  = "int flag_byte_%d = " % var
-                    statement += "(%s & (0xff << %d)) >> %d;" % (varname, i * 8, i * 8)
+                    statement += "(%s & (0xff << %d)) >> %d;" % (varname, 24 - i * 8, 24 - i * 8)
                     statements.append(statement)
                     created_singletons.add(var)
 
@@ -193,7 +196,7 @@ class NodeTree(object):
 
             # found four consecutive bytes
             for j in range(0, 4):
-                statements.append("flag |= " + "flag_byte_{} << {};".format(current_byte_idx + j, 8 * j))
+                statements.append("flag |= " + "flag_byte_{} << {};".format(current_byte_idx + j, 24 - 8 * j))
 
             break
 
@@ -292,8 +295,7 @@ class ReverseNode(UnOp):
 
     def to_statement(self):
         a_t = self.arg.to_statement()
-        #return "reverse({0}, {1})".format(a_t, self.size / 8)
-        return "{0}".format(a_t)
+        return "reverse({0}, {1})".format(a_t, self.size / 8)
 
 class ConcatNode(Node):
 
