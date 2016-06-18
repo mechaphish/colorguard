@@ -17,6 +17,7 @@ class ColorguardType2Exploit(object):
         self.binary = binary
         self.input_string = input_string
         self.leaked_ast = leaked_ast
+        self.method_name = 'circumstantial'
 
         node_tree = Harvester(leaked_ast).reverse()
         assert len(node_tree.leaked_bytes()) >= 4, "input does not leak enough bytes, 4 bytes required"
