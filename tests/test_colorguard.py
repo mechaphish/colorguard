@@ -100,6 +100,23 @@ def test_caching():
     # and insure the cache-loaded version still works
     nose.tools.assert_true(cg2.causes_leak())
 
+def test_leak_no_exit():
+    """
+    Test the at-receive local caching.
+    """
+
+    # this payload cause a leak but the exit condition in QEMU does not represent the
+    # the PoV's running environment accurately
+    payload = "320a330a".decode('hex')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'shellphish/PIZZA_00001'), payload)
+
+    # of course run the thing and makes sure it works
+    nose.tools.assert_true(cg.causes_leak())
+
+    pov = cg.attempt_pov()
+
+    nose.tools.assert_true(pov.test_binary())
+
 def run_all():
     functions = globals()
     all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
