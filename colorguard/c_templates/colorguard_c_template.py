@@ -23,6 +23,20 @@ typedef long long int64_t;
 typedef unsigned long long uint64_t;
 
 
+int strlen(const char *s) {
+    int i = 0;
+
+    while (*s) {
+        s++; i++;
+    }
+
+    return i;
+}
+
+void debug(const char *str) {
+    transmit(2, str, strlen(str), NULL);
+}
+
 void *memcpy(void *dst, const void *src, size_t n) {
    char *d = (char*)dst;
    const char *s = (const char *)src;
@@ -89,6 +103,33 @@ int reverse(int to_reverse, size_t n)
 }
 
 /*
+ * Test file descriptor readiness.
+ */
+
+int fd_ready(int fd) {
+  struct timeval tv;
+  fd_set rfds;
+  int readyfds = 0;
+
+  FD_SET(fd, &rfds);
+
+  tv.tv_sec = 1;
+  tv.tv_usec = 0;
+
+  int ret;
+  ret = fdwait(fd + 1, &rfds, NULL, &tv, &readyfds);
+
+  /* bail if fdwait fails */
+  if (ret != 0) {
+    return 0;
+  }
+  if (readyfds == 0)
+    return 0;
+
+  return 1;
+}
+
+/*
  * Receive n_bytes into no particular buffer.
  */
 size_t blank_receive( int fd, size_t n_bytes )
@@ -96,7 +137,11 @@ size_t blank_receive( int fd, size_t n_bytes )
   size_t len = 0;
   size_t rx = 0;
   char junk_byte;
+
   while (len < n_bytes) {
+    if (!fd_ready(fd)) {
+        return len;
+    }
     if (receive(fd, &junk_byte, 1, &rx) != 0) {
       len = 0;
       break;
