@@ -60,7 +60,6 @@ class NodeTree(object):
 
     def _concat_to_c(self):
 
-        need_vars = [ ]
         statements = [ ]
 
         max_op_size = 0
@@ -98,7 +97,7 @@ class NodeTree(object):
                     statements.append(statement)
 
         statements = ["\nchar root[%d];" % max_op_size, "int flag = 0;"] + statements
-        return '\n'.join(statements) + "\n" + self._concat_combine_bytes(need_vars)
+        return '\n'.join(statements) + "\n" + self._concat_combine_bytes()
 
     def _extract_to_c(self):
 
@@ -160,29 +159,7 @@ class NodeTree(object):
 
         return map(lambda y: (y, self.root), [start_byte] + range(start_byte + 1, end_byte + 1))
 
-    def _to_single_byte_vars(self, need_vars):
-
-        created_singletons = set()
-        for varset in self.created_vars:
-            if len(varset) == 1:
-                created_singletons.add(varset[0])
-
-        statements = [ ]
-
-        for varname, varset in need_vars:
-            for i, var in enumerate(varset):
-
-                if not var in created_singletons:
-                    statement  = "int flag_byte_%d = " % var
-                    statement += "(%s & (0xff << %d)) >> %d;" % (varname, 24 - i * 8, 24 - i * 8)
-                    statements.append(statement)
-                    created_singletons.add(var)
-
-        return statements
-
-    def _concat_combine_bytes(self, need_vars):
-
-        #statements = self._to_single_byte_vars(need_vars)
+    def _concat_combine_bytes(self):
 
         statements = [ ]
         ordered_bytes = dict(self.leaked_bytes())
