@@ -57,7 +57,7 @@ class ColorguardType2Exploit(object):
                                                          filename=filename)
         return compiled_result
 
-    def test_binary(self):
+    def test_binary(self, enable_randomness=True):
         '''
         Test the binary generated
         '''
@@ -67,4 +67,4 @@ class ColorguardType2Exploit(object):
         self.dump_binary(filename=pov_binary_filename)
 
         pov_tester = CGCPovTester()
-        return pov_tester.test_binary_pov(pov_binary_filename, self.binary)
+        return pov_tester.test_binary_pov(pov_binary_filename, self.binary, enable_randomness)
