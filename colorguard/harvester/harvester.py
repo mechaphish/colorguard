@@ -12,7 +12,7 @@ class Harvester(object):
         self.ast = ast
 
         self.ast_var = claripy.BVS('reverse_root', 32)
-        self.root = BVSNode('root')
+        self.root = BVSNode('root', ast.size() / 8)
         self.tree = [ ]
 
     @staticmethod
@@ -47,10 +47,10 @@ class Harvester(object):
 
         data = None
         if op == 'BVV':
-            data = BVVNode(ast.args[0])
+            data = BVVNode(ast.args[0], ast.size())
 
         if op == 'BVS':
-            data = BVSNode(ast.args[0])
+            data = BVSNode(ast.args[0], ast.size())
 
         ### OPERATIONS
 
@@ -60,7 +60,7 @@ class Harvester(object):
             new_root = root
             args = ast.args[1:]
             for arg in args:
-                new_root = SubNode(new_root, self._reverse_inner(root, arg))
+                new_root = SubNode(new_root, self._reverse_inner(root, arg), ast.size())
 
             data = self._reverse_inner(new_root, ast.args[0])
 
@@ -69,7 +69,7 @@ class Harvester(object):
             new_root = root
             args = ast.args[1:]
             for arg in args:
-                new_root = AddNode(new_root, self._reverse_inner(root, arg))
+                new_root = AddNode(new_root, self._reverse_inner(root, arg), ast.size())
 
             data = self._reverse_inner(new_root, ast.args[0])
 
@@ -78,7 +78,7 @@ class Harvester(object):
             new_root = root
             args = ast.args[1:]
             for arg in args:
-                new_root = XorNode(new_root, self._reverse_inner(root, arg))
+                new_root = XorNode(new_root, self._reverse_inner(root, arg), ast.size())
 
             data = self._reverse_inner(new_root, ast.args[0])
 
@@ -88,7 +88,7 @@ class Harvester(object):
         if op == 'Extract':
             end_index = ast.args[0]
             start_index = ast.args[1]
-            new_root = ExtractNode(root, start_index, end_index)
+            new_root = ExtractNode(root, start_index, end_index, ast.size())
 
             data = self._reverse_inner(new_root, ast.args[2])
 
@@ -112,7 +112,7 @@ class Harvester(object):
             size = ast.args[0]
             data = ast.args[1]
 
-            new_root = AndNode(root, BVVNode((1 << (ast.size() - size)) - 1))
+            new_root = AndNode(root, BVVNode((1 << (ast.size() - size)) - 1, ast.size()), ast.size())
 
             data = self._reverse_inner(new_root, data)
 
@@ -122,7 +122,7 @@ class Harvester(object):
             for arg in ast.args:
                 operands.append((arg.size(), self._reverse_inner(root, arg)))
 
-            data = ConcatNode(operands)
+            data = ConcatNode(operands, ast.size())
             # no more processing
 
         assert data is not None, "unsupported op type '%s' encountered" % op

@@ -60,8 +60,10 @@ class NodeTree(object):
 
     def _concat_to_c(self):
 
-        statements = ["\nint root, flag;", "root = flag = 0;"]
         need_vars = [ ]
+        statements = [ ]
+
+        max_op_size = 0
 
         for size, op in self.root.operands:
 
@@ -71,42 +73,46 @@ class NodeTree(object):
             # TODO: but im too lazy to special case these at the moment
             if isinstance(op, BVVNode) or op._symbolic_sides() > 1:
                 # read and throw away
-                statement = "blank_receive(0, {});".format(size / 8)
+                statements.append("blank_receive(0, {});".format(size / 8))
             else:
+                max_op_size = max(max_op_size, size / 8)
                 # find extract to determine which flag byte
-                statement  = "receive(0, &{}, {}, NULL);\n".format('root', size / 8)
-                statement += "{} = reverse({}, 4);\n".format('root', 'root')
+                statements.append("receive(0, {}, {}, NULL);\n".format('root', size / 8))
 
                 enode = self._find_node(op, ExtractNode)
                 start_byte = NodeTree._to_byte_idx(enode.end_index)
                 end_byte = NodeTree._to_byte_idx(enode.start_index) + 1
 
-                b_str = str(start_byte)
-                if start_byte != end_byte - 1:
-                    b_str = '_'.join(map(str, range(start_byte, end_byte)))
+                statement = op.to_statement()
+                if statement != "":
+                    statements.append(statement + ";")
 
-                need_vars.append(("flag_byte_%s" % b_str, range(start_byte, end_byte)))
+                for r_i, i in enumerate(range(start_byte, end_byte)):
+                    statement = ""
+                    if not i in self.created_vars:
+                        statement += "uint8_t "
+                        self.created_vars.add(i)
+                    # hack! this will assume that if the operation size is larger than leaked bytes
+                    # the leaked bytes will be on the `right` of the leaked int
+                    statement += "flag_byte_%d = root[%d] & 0xff;" % (i, r_i + (size / 8) - (end_byte - start_byte))
+                    statements.append(statement)
 
-                byte_rep = tuple(range(start_byte, end_byte))
-                if byte_rep not in self.created_vars:
-                    statement += "int "
-                    self.created_vars.add(byte_rep)
-
-                statement += "flag_byte_" + b_str + " = "
-                statement += op.to_statement() + ";"
-
-            statements.append(statement)
-
+        statements = ["\nchar root[%d];" % max_op_size, "int flag = 0;"] + statements
         return '\n'.join(statements) + "\n" + self._concat_combine_bytes(need_vars)
 
     def _extract_to_c(self):
 
         # if it's an extract statement we already know it needs to have all the bytes
 
-        statements = ["\nint root, flag;", "root = flag = 0;"]
-        statements.append("receive(0, &{}, 4, NULL);".format('root'))
-        statements.append("{} = reverse({}, 4);".format('root', 'root'))
-        statements.append("flag = " + self.root.to_statement() + ";")
+        statements = ["\nchar root[%d];" % (self.root.size / 8), "int flag = 0;"]
+        statements.append("receive(0, {}, {}, NULL);".format('root', self.root.size / 8))
+
+        statements.append(self.root.to_statement() + ";")
+        for i in range(self.root.size / 8):
+            statements.append("uint8_t flag_byte_%d = root[%d] & 0xff;" % (i, i))
+
+        for i in range(min(self.root.size / 8, 4)):
+            statements.append("flag |= flag_byte_%d << %d;" % (i, 24 - (i * 8)))
         return "\n".join(statements)
 
     def leaked_bytes(self):
@@ -176,8 +182,9 @@ class NodeTree(object):
 
     def _concat_combine_bytes(self, need_vars):
 
-        statements = self._to_single_byte_vars(need_vars)
+        #statements = self._to_single_byte_vars(need_vars)
 
+        statements = [ ]
         ordered_bytes = dict(self.leaked_bytes())
         for current_byte in ordered_bytes:
             # check if the next four bytes leak the subsequent bytes
@@ -207,20 +214,24 @@ class NodeTree(object):
 
 class Node(object):
 
+    def __init__(self, size):
+        self.size = size
+
     def _symbolic_sides(self):
         raise NotImplementedError("It is the responsibilty of subclasses to implement this method")
 
 class UnOp(Node):
 
-    def __init__(self, arg):
+    def __init__(self, arg, size):
+        super(UnOp, self).__init__(size)
         self.arg = arg
 
     def _symbolic_sides(self):
         return self.arg._symbolic_sides()
 
 class BVVNode(UnOp):
-    def __init__(self, arg):
-        super(BVVNode, self).__init__(arg)
+    def __init__(self, arg, size):
+        super(BVVNode, self).__init__(arg, size)
 
     def to_statement(self):
         return "{0:#x}".format(self.arg)
@@ -229,8 +240,8 @@ class BVVNode(UnOp):
         return 0
 
 class BVSNode(UnOp):
-    def __init__(self, arg):
-        super(BVSNode, self).__init__(arg)
+    def __init__(self, arg, size):
+        super(BVSNode, self).__init__(arg, size)
 
     def to_statement(self):
         return self.arg
@@ -240,7 +251,8 @@ class BVSNode(UnOp):
 
 class BinOpNode(Node):
 
-    def __init__(self, op_str, arg1, arg2):
+    def __init__(self, op_str, arg1, arg2, size):
+        super(BinOpNode, self).__init__(size)
         self.arg1 = arg1
         self.arg2 = arg2
         self.op_str = op_str
@@ -248,34 +260,34 @@ class BinOpNode(Node):
     def to_statement(self):
         a1_t = self.arg1.to_statement()
         a2_t = self.arg2.to_statement()
-        return "({0} {1} {2})".format(a1_t, self.op_str, a2_t)
+        return "{1}({0}, {2}, {3})".format(a1_t, self.op_str, a2_t, self.size / 8)
 
     def _symbolic_sides(self):
         return self.arg1._symbolic_sides() + self.arg2._symbolic_sides()
 
 class AddNode(BinOpNode):
 
-    def __init__(self, arg1, arg2):
-        super(AddNode, self).__init__('+', arg1, arg2)
+    def __init__(self, arg1, arg2, size):
+        super(AddNode, self).__init__('add', arg1, arg2, size)
 
 class SubNode(BinOpNode):
 
-    def __init__(self, arg1, arg2):
-        super(SubNode, self).__init__('-', arg1, arg2)
+    def __init__(self, arg1, arg2, size):
+        super(SubNode, self).__init__('sub', arg1, arg2, size)
 
 class XorNode(BinOpNode):
 
-    def __init__(self, arg1, arg2):
-        super(XorNode, self).__init__('^', arg1, arg2)
+    def __init__(self, arg1, arg2, size):
+        super(XorNode, self).__init__('xor', arg1, arg2, size)
 
 class AndNode(BinOpNode):
-    def __init__(self, arg1, arg2):
-        super(AndNode, self).__init__('&', arg1, arg2)
+    def __init__(self, arg1, arg2, size):
+        super(AndNode, self).__init__('and', arg1, arg2, size)
 
 class ExtractNode(UnOp):
 
-    def __init__(self, arg, start_index, end_index):
-        super(ExtractNode, self).__init__(arg)
+    def __init__(self, arg, start_index, end_index, size):
+        super(ExtractNode, self).__init__(arg, size)
         self.start_index = start_index
         self.end_index = end_index
 
@@ -285,13 +297,16 @@ class ExtractNode(UnOp):
         """
 
         a_t = self.arg.to_statement()
+
+        if isinstance(self.arg, BVSNode):
+            return ""
+
         return "{0}".format(a_t)
 
 class ReverseNode(UnOp):
 
     def __init__(self, arg, size):
-        super(ReverseNode, self).__init__(arg)
-        self.size = size
+        super(ReverseNode, self).__init__(arg, size)
 
     def to_statement(self):
         a_t = self.arg.to_statement()
@@ -299,7 +314,8 @@ class ReverseNode(UnOp):
 
 class ConcatNode(Node):
 
-    def __init__(self, operands):
+    def __init__(self, operands, size):
+        super(ConcatNode, self).__init__(size)
         self.operands = operands
 
     def to_statement(self):

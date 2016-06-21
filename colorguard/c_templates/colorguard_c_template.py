@@ -37,11 +37,87 @@ void debug(const char *str) {
     transmit(2, str, strlen(str), NULL);
 }
 
+void memset(char *dst, char v, size_t n) {
+   size_t i;
+
+   for(i=0;i<n;i++) dst[n] = v;
+}
+
 void *memcpy(void *dst, const void *src, size_t n) {
    char *d = (char*)dst;
    const char *s = (const char *)src;
    while (n--) {*d++ = *s++;}
    return dst;
+}
+
+char *reverse(char *str, size_t n) {
+
+    char tmp, *src, *dst;
+    size_t len;
+    if (str != NULL)
+    {
+        len = n;
+        if (len > 1) {
+            src = str;
+            dst = src + len - 1;
+            while (src < dst) {
+                tmp = *src;
+                *src++ = *dst;
+                *dst-- = tmp;
+            }
+        }
+    }
+    return str;
+}
+
+/* could probably just be *((int *)reverse(str, n)) */
+long long to_int(char *str, size_t n) {
+   size_t i;
+   long long result = 0;
+
+   for(i=0;i<n;i++) {
+      result |= ((uint8_t) str[n-i-1]) << (i * 8);
+   }
+
+   return result;
+}
+
+char *from_int(char *dst, long long val, size_t n) {
+   size_t i;
+
+   for(i=0;i<n;i++) {
+      dst[n-i-1] = (unsigned char)((val & (0xff << (i * 8))) >> (i * 8));
+   }
+
+   return dst;
+}
+
+char *sub(char *dst, long long operand, size_t n) {
+   long long cint = 0;
+
+   cint = to_int(dst, n) - operand;
+   return from_int(dst, cint, n);
+}
+
+char *add(char *dst, long long operand, size_t n) {
+   long long cint = 0;
+
+   cint = to_int(dst, n) + operand;
+   return from_int(dst, cint, n);
+}
+
+char *and(char *dst, long long operand, size_t n) {
+   long long cint = 0;
+
+   cint = to_int(dst, n) & operand;
+   return from_int(dst, cint, n);
+}
+
+char *xor(char *dst, long long operand, size_t n) {
+   long long cint = 0;
+
+   cint = to_int(dst, n) ^ operand;
+   return from_int(dst, cint, n);
 }
 
 size_t receive_until(int fd, char *dst, char delim, size_t max )
@@ -88,7 +164,7 @@ size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
  * Reverse an integer, same as converting endianness.
  * n is always expected to be 4 at the moment.
  */
-int reverse(int to_reverse, size_t n)
+int reverse_int(int to_reverse, size_t n)
 {
   int new_int = 0;
 
@@ -243,12 +319,14 @@ int main() {
   }
 
   char payload[] = "{payload}";
+  long long ti;
 
   send_all(1, payload, {payloadsize});
 
   {transformation_code}
 
-  flag = reverse(flag, 4);
+
+  flag = reverse_int(flag, 4);
   type2_submit((unsigned char *)&flag, t2vals.read_size);
 
   return 0;
