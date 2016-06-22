@@ -102,7 +102,7 @@ def test_caching():
 
 def test_leak_no_exit():
     """
-    Test the at-receive local caching.
+    Test the handling of leaks where the payload does not cause an exit of the binary.
     """
 
     # this payload cause a leak but the exit condition in QEMU does not represent the
