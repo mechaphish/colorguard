@@ -13,4 +13,6 @@ True
 <colorguard.pov.ColorguardType2Exploit at 0x7f7d9a2c2610>
 >>> pov.test_binary() # being Rex POVs they can also be run against a simulation of the CGC architecture
 True
+>>> pov.dump_c('leak.c') # they can be dumped just like Rex POVs too
+>>> pov.dump_binary('leak.pov')
 ```
