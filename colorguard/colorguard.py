@@ -1,8 +1,9 @@
 import os
 import angr
 import tracer
-import hashlib
 import pickle
+import hashlib
+import claripy
 from .pov import ColorguardType2Exploit
 from .simprocedures import CacheReceive
 from .simprocedures import receive
@@ -37,6 +38,9 @@ class ColorGuard(object):
 
         # will be set by hook if needed
         self._cache_file = None
+
+        # will be set by causes_leak
+        self._leak_path = None
 
         receive.cache_hook = self._cache_hook
         self.loaded_from_cache = False
@@ -102,9 +106,9 @@ class ColorGuard(object):
 
     def causes_leak(self):
 
-        path, _ = self._tracer.run()
+        self._leak_path, _ = self._tracer.run()
 
-        stdout = path.state.posix.files[1]
+        stdout = self._leak_path.state.posix.files[1]
 
         tmp_pos = stdout.read_pos
         stdout.pos = 0
@@ -122,4 +126,22 @@ class ColorGuard(object):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
-        return ColorguardType2Exploit(self.binary, self.payload, self.leak_ast)
+        # switch to a composite solver
+        self._tracer.remove_preconstraints(self._leak_path)
+
+        st = self._leak_path.state
+
+        # check leaked bits
+        simplified = st.se.simplify(self.leak_ast)
+
+        output_var = claripy.BVS('output_var', self.leak_ast.size())
+
+        st.add_constraints(self.leak_ast == output_var)
+
+        ft = self._leak_path.state.se._solver._merged_solver_for(
+                lst=[self.leak_ast])
+
+        smt_stmt = ft._get_solver().to_smt2()
+
+        return ColorguardType2Exploit(self.binary,
+                self.payload, smt_stmt, output_var)
