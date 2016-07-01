@@ -99,6 +99,8 @@ def test_caching():
 
     # and insure the cache-loaded version still works
     nose.tools.assert_true(cg2.causes_leak())
+    pov = cg2.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
 
 def test_leak_no_exit():
     """
