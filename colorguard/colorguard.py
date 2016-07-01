@@ -4,6 +4,7 @@ import tracer
 import pickle
 import hashlib
 import claripy
+from .harvester import Harvester
 from .pov import ColorguardType2Exploit
 from .simprocedures import CacheReceive
 from .simprocedures import receive
@@ -134,14 +135,16 @@ class ColorGuard(object):
         # check leaked bits
         simplified = st.se.simplify(self.leak_ast)
 
-        output_var = claripy.BVS('output_var', self.leak_ast.size())
+        harvester = Harvester(simplified)
 
-        st.add_constraints(self.leak_ast == output_var)
+        output_var = claripy.BVS('output_var', harvester.minimized_ast.size())
+
+        st.add_constraints(harvester.minimized_ast == output_var)
 
         ft = self._leak_path.state.se._solver._merged_solver_for(
-                lst=[self.leak_ast])
+                lst=[simplified])
 
         smt_stmt = ft._get_solver().to_smt2()
 
         return ColorguardType2Exploit(self.binary,
-                self.payload, smt_stmt, output_var)
+                self.payload, harvester, smt_stmt, output_var)
