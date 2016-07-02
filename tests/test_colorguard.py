@@ -114,9 +114,7 @@ def test_leak_no_exit():
 
     # of course run the thing and makes sure it works
     nose.tools.assert_true(cg.causes_leak())
-
     pov = cg.attempt_pov()
-
     nose.tools.assert_true(pov.test_binary())
 
 def run_all():
