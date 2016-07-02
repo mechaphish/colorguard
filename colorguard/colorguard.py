@@ -1,8 +1,10 @@
 import os
 import angr
 import tracer
-import hashlib
 import pickle
+import hashlib
+import claripy
+from .harvester import Harvester
 from .pov import ColorguardType2Exploit
 from .simprocedures import CacheReceive
 from .simprocedures import receive
@@ -38,12 +40,15 @@ class ColorGuard(object):
         # will be set by hook if needed
         self._cache_file = None
 
+        # will be set by causes_leak
+        self._leak_path = None
+
         receive.cache_hook = self._cache_hook
         self.loaded_from_cache = False
         cache_tuple = self._cache_lookup_hook()
 
         simprocedures = {'receive': CacheReceive}
-        self._tracer = tracer.Tracer(binary, payload, simprocedures=simprocedures)
+        self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, simprocedures=simprocedures)
 
         # fix up the tracer so that it the input is completely concrete
         if cache_tuple is None:
@@ -61,8 +66,8 @@ class ColorGuard(object):
                     hierarchy=False,
                     save_unconstrained=self._tracer.crash_mode)
 
-            # update path group
-            self._tracer.path_group = pg
+            pg = self._tracer.path_group
+            pg.active[0].state = state
             # update bb_cnt
             self._tracer.bb_cnt = bb_cnt
             e_path = pg.active[0]
@@ -93,7 +98,10 @@ class ColorGuard(object):
 
     def _local_cacher(self, state):
 
-        state = self._tracer.previous.state
+        cache_path = self._tracer.previous.copy()
+        self._tracer.remove_preconstraints(cache_path)
+
+        state = cache_path.state
         ptuple = pickle.dumps((self._tracer.bb_cnt - 1, state))
 
         l.info('caching state to %s', self._cache_file)
@@ -102,9 +110,9 @@ class ColorGuard(object):
 
     def causes_leak(self):
 
-        path, _ = self._tracer.run()
+        self._leak_path, _ = self._tracer.run()
 
-        stdout = path.state.posix.files[1]
+        stdout = self._leak_path.state.posix.files[1]
 
         tmp_pos = stdout.read_pos
         stdout.pos = 0
@@ -122,4 +130,24 @@ class ColorGuard(object):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
-        return ColorguardType2Exploit(self.binary, self.payload, self.leak_ast)
+        # switch to a composite solver
+        self._tracer.remove_preconstraints(self._leak_path)
+
+        st = self._leak_path.state
+
+        # check leaked bits
+        simplified = st.se.simplify(self.leak_ast)
+
+        harvester = Harvester(simplified)
+
+        output_var = claripy.BVS('output_var', harvester.minimized_ast.size())
+
+        st.add_constraints(harvester.minimized_ast == output_var)
+
+        ft = self._leak_path.state.se._solver._merged_solver_for(
+                lst=[simplified])
+
+        smt_stmt = ft._get_solver().to_smt2()
+
+        return ColorguardType2Exploit(self.binary,
+                self.payload, harvester, smt_stmt, output_var)

@@ -1,135 +1,137 @@
 import claripy
-from .nodes import NodeTree
-from .nodes import BVVNode, BVSNode
-from .nodes import ReverseNode, AddNode, AndNode, SubNode, XorNode, ExtractNode, ConcatNode
+from itertools import groupby
+from operator import itemgetter
+
+def chunks(l, n):
+    out = [ ]
+    for i in xrange(0, len(l), n):
+        out.append(l[i:i+n])
+
+    return out
 
 class Harvester(object):
     """
-    angr AST to a forward operation
+    harvest information from an angr AST
     """
 
     def __init__(self, ast):
         self.ast = ast
 
-        self.ast_var = claripy.BVS('reverse_root', 32)
-        self.root = BVSNode('root', ast.size() / 8)
-        self.tree = [ ]
+        self.leaked_bits = set()
 
-    @staticmethod
-    def determine_args(args):
+        self.bit_groups = [ ]
 
-        a1 = args[0]
-        a2 = args[1]
+        self.leaked_bits = sorted(set(self._count_bits_inner(self.ast)))
 
-        if a1.op == 'BVV':
-            argument = a1
-            data = a2
-        else:
-            argument = a2
-            data = a1
+        for _, g in groupby(enumerate(self.leaked_bits), lambda (i,x):i-x):
+            self.bit_groups.append(map(itemgetter(1), g))
 
-        return argument, data
+        # receive code
+        self.receives = [ ]
 
-    def _reverse_inner(self, root=None, ast=None):
+        # set by count_bits_inner
+        self.minized_ast = None
+
+        self._minimize_ast()
+
+    def _minimize_ast(self):
+        """
+        Byte-by-byte traversal over the AST finding which bytes do not need to
+        added to the constraints solved by boolector
+        """
+
+        # collect bytes
+        ast_bytes = [ ]
+        for i in range(self.ast.size() / 8, 0, -1):
+            ast_bytes.append(self.ast[i * 8 - 1: (i * 8) - 8])
+
+        # populate receives and minimized ast
+
+        minimized_ast_skel = [ ]
+
+        i = 0
+        # really ugly code which gathers all receives together
+        # so 5 consecutive reads of BVVs becomes a single receive of 5 bytes
+        bits_accounted_for = set()
+        while i < len(ast_bytes):
+            b_cnt = 0
+            while i < len(ast_bytes):
+                # concrete data or unnecessary leak
+                if ast_bytes[i].op == 'BVV'\
+                    or set(self._count_bits_inner(ast_bytes[i])).issubset(bits_accounted_for):
+                    b_cnt += 1
+                    i += 1
+                else: break
+
+            if b_cnt > 0:
+                self.receives.append("blank_receive(0, %d);" % b_cnt)
+
+            b_cnt = 0
+            while i < len(ast_bytes) and ast_bytes[i].op != 'BVV':
+                minimized_ast_skel.append(ast_bytes[i])
+                # update list of seen bits
+                bits_accounted_for = bits_accounted_for.union(set(self._count_bits_inner(ast_bytes[i])))
+                b_cnt += 1
+                i += 1
+
+            if b_cnt > 0:
+                self.receives.append("get_output(%d);" % b_cnt)
+
+        # make the skeleton into an ast
+        self.minimized_ast = claripy.Concat(*minimized_ast_skel)
+
+    def _count_bits_inner(self, ast):
         """
         Recursive descent.
 
         push inverse operation and arguments for each op in original tree
         """
 
-        if root is None:
-            root = self.root
-
-        if ast is None:
-            ast = self.ast
+        if not isinstance(ast, claripy.ast.bv.BV):
+            return [ ]
 
         op = ast.op
 
-        data = None
-        if op == 'BVV':
-            data = BVVNode(ast.args[0], ast.size())
+        bit_cnts = [ ]
 
-        if op == 'BVS':
-            data = BVSNode(ast.args[0], ast.size())
-
-        ### OPERATIONS
-
-        # two args, one is a constant
-        if op == '__add__':
-
-            new_root = root
-            args = ast.args[1:]
-            for arg in args:
-                new_root = SubNode(new_root, self._reverse_inner(root, arg), ast.size())
-
-            data = self._reverse_inner(new_root, ast.args[0])
-
-        if op == '__sub__':
-
-            new_root = root
-            args = ast.args[1:]
-            for arg in args:
-                new_root = AddNode(new_root, self._reverse_inner(root, arg), ast.size())
-
-            data = self._reverse_inner(new_root, ast.args[0])
-
-        if op == '__xor__':
-
-            new_root = root
-            args = ast.args[1:]
-            for arg in args:
-                new_root = XorNode(new_root, self._reverse_inner(root, arg), ast.size())
-
-            data = self._reverse_inner(new_root, ast.args[0])
-
-        ### FUNCTIONS
-
-        # three args, end index, start index, data
-        if op == 'Extract':
+        # an extract of the flag page data
+        if op == 'Extract' and ast.args[2].op == 'BVS':
             end_index = ast.args[0]
             start_index = ast.args[1]
-            new_root = ExtractNode(root, start_index, end_index, ast.size())
-
-            data = self._reverse_inner(new_root, ast.args[2])
 
             # special case if the extract is on the flag page
-            if isinstance(data, BVSNode):
-                data = new_root
+            if ast.args[2].op == 'BVS':
+                sz = ast.args[2].size() - 1
+                return map(lambda x: sz - x,
+                        range(start_index, end_index+1))
 
-        # only one arg
-        if op == 'Reverse':
-            # reverse takes a size as an argument
-            new_root = ReverseNode(root, ast.args[0].size())
+        for arg in ast.args:
+            bit_cnts.extend(self._count_bits_inner(arg))
 
-            data = self._reverse_inner(new_root, ast.args[0])
+        # no more processing
+        return bit_cnts
 
-        ### SPECIAL
+    def get_largest_consecutive(self):
 
-        if op == 'SignExt' or op == 'ZeroExt':
-            # this consists of just removing the sign extension by anding with the
-            # none extended bits
+        max_s = 0
+        max_bg = None
+        for bg in self.bit_groups:
+            cur_s = len(bg) / 8
+            if cur_s > max_s:
+                max_s = cur_s
+                max_bg = bg
 
-            size = ast.args[0]
-            data = ast.args[1]
+        # into bytes
+        byte_group = [ ]
+        for c in chunks(max_bg, 8):
+            byte_group.append(c[0] / 8)
 
-            new_root = AndNode(root, BVVNode((1 << (ast.size() - size)) - 1, ast.size()), ast.size())
+        return byte_group
 
-            data = self._reverse_inner(new_root, data)
+    def count_bytes(self):
 
-        if op == 'Concat':
+        byte_c = 0
+        for bg in self.bit_groups:
+            byte_c += len(bg) / 8
 
-            operands = [ ]
-            for arg in ast.args:
-                operands.append((arg.size(), self._reverse_inner(root, arg)))
-
-            data = ConcatNode(operands, ast.size())
-            # no more processing
-
-        assert data is not None, "unsupported op type '%s' encountered" % op
-
-        return data
-
-    def reverse(self):
-
-        # assume transformed flag data is in `flag_data`
-        return NodeTree(self._reverse_inner())
+        return byte_c
