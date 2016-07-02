@@ -130,8 +130,7 @@ void get_output(size_t n_bytes) {
     if (!buf)
       die("receive buffer malloc failed");
 
-    if (receive_n(1, buf, n_bytes) != n_bytes)
-        goto error;
+    receive_n(0, buf, n_bytes);
 
     // convert it to a bitstring
     //  
@@ -154,7 +153,6 @@ void get_output(size_t n_bytes) {
     /* update output size */
     output_size = output_size + n_bytes * 8;
 
-error:
     free(buf);
 }
 
