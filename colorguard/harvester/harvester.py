@@ -52,11 +52,16 @@ class Harvester(object):
         i = 0
         # really ugly code which gathers all receives together
         # so 5 consecutive reads of BVVs becomes a single receive of 5 bytes
+        bits_accounted_for = set()
         while i < len(ast_bytes):
             b_cnt = 0
-            while i < len(ast_bytes) and ast_bytes[i].op == 'BVV':
-                b_cnt += 1
-                i += 1
+            while i < len(ast_bytes):
+                # concrete data or unnecessary leak
+                if ast_bytes[i].op == 'BVV'\
+                    or set(self._count_bits_inner(ast_bytes[i])).issubset(bits_accounted_for):
+                    b_cnt += 1
+                    i += 1
+                else: break
 
             if b_cnt > 0:
                 self.receives.append("blank_receive(0, %d);" % b_cnt)
@@ -64,6 +69,8 @@ class Harvester(object):
             b_cnt = 0
             while i < len(ast_bytes) and ast_bytes[i].op != 'BVV':
                 minimized_ast_skel.append(ast_bytes[i])
+                # update list of seen bits
+                bits_accounted_for = bits_accounted_for.union(set(self._count_bits_inner(ast_bytes[i])))
                 b_cnt += 1
                 i += 1
 
