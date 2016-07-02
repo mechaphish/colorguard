@@ -1,3 +1,4 @@
+import os
 import tempfile
 import compilerex
 from .harvester import Harvester
@@ -114,4 +115,8 @@ class ColorguardType2Exploit(object):
         self.dump_binary(filename=pov_binary_filename)
 
         pov_tester = CGCPovTester()
-        return pov_tester.test_binary_pov(pov_binary_filename, self.binary, enable_randomness)
+        result = pov_tester.test_binary_pov(pov_binary_filename, self.binary, enable_randomness)
+
+        os.remove(pov_binary_filename)
+
+        return result
