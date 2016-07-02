@@ -113,10 +113,10 @@ class Harvester(object):
 
     def get_largest_consecutive(self):
 
-        max_s = 0
+        max_s = -1
         max_bg = None
         for bg in self.bit_groups:
-            cur_s = len(bg) / 8
+            cur_s = len(bg)
             if cur_s > max_s:
                 max_s = cur_s
                 max_bg = bg
