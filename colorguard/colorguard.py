@@ -48,7 +48,7 @@ class ColorGuard(object):
         cache_tuple = self._cache_lookup_hook()
 
         simprocedures = {'receive': CacheReceive}
-        self._tracer = tracer.Tracer(binary, payload, simprocedures=simprocedures)
+        self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, simprocedures=simprocedures)
 
         # fix up the tracer so that it the input is completely concrete
         if cache_tuple is None:
@@ -66,8 +66,8 @@ class ColorGuard(object):
                     hierarchy=False,
                     save_unconstrained=self._tracer.crash_mode)
 
-            # update path group
-            self._tracer.path_group = pg
+            pg = self._tracer.path_group
+            pg.active[0].state = state
             # update bb_cnt
             self._tracer.bb_cnt = bb_cnt
             e_path = pg.active[0]
@@ -98,7 +98,10 @@ class ColorGuard(object):
 
     def _local_cacher(self, state):
 
-        state = self._tracer.previous.state
+        cache_path = self._tracer.previous.copy()
+        self._tracer.remove_preconstraints(cache_path)
+
+        state = cache_path.state
         ptuple = pickle.dumps((self._tracer.bb_cnt - 1, state))
 
         l.info('caching state to %s', self._cache_file)
