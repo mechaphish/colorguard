@@ -25,19 +25,8 @@ void die(const char *str) {
     _terminate(1);
 }
 
-size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
-{
-  size_t len = 0;
-  size_t rx = 0;
-  while(len < n_bytes) {
-    if (receive(fd, dst + len, n_bytes - len, &rx) != 0) {
-      len = 0;
-      break;
-    }
-    len += rx;
-  }
-
-  return len;
+void debug_str(const char *str) {
+    transmit(2, str, strlen(str), NULL);
 }
 
 /*
@@ -65,6 +54,21 @@ int fd_ready(int fd) {
     return 0;
 
   return 1;
+}
+
+size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
+{
+  size_t len = 0;
+  size_t rx = 0;
+  while(len < n_bytes) {
+    if (receive(fd, dst + len, n_bytes - len, &rx) != 0) {
+      len = 0;
+      break;
+    }
+    len += rx;
+  }
+
+  return len;
 }
 
 /*
@@ -121,12 +125,13 @@ void to_bits(char *dst, char c) {
     }
 }
 
-char *get_output(size_t n_bytes) {
+void get_output(size_t n_bytes) {
     unsigned char *buf = malloc(n_bytes);
     if (!buf)
       die("receive buffer malloc failed");
 
-    receive_n(1, buf, n_bytes);
+    if (receive_n(1, buf, n_bytes) != n_bytes)
+        goto error;
 
     // convert it to a bitstring
     //  
@@ -149,9 +154,8 @@ char *get_output(size_t n_bytes) {
     /* update output size */
     output_size = output_size + n_bytes * 8;
 
+error:
     free(buf);
-
-    return bitbuf;
 }
 
 typedef struct type1_vals_ {

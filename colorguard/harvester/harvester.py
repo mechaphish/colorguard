@@ -40,6 +40,7 @@ class Harvester(object):
         added to the constraints solved by boolector
         """
 
+        # collect bytes
         ast_bytes = [ ]
         for i in range(self.ast.size() / 8, 0, -1):
             ast_bytes.append(self.ast[i * 8 - 1: (i * 8) - 8])
@@ -48,12 +49,26 @@ class Harvester(object):
 
         minimized_ast_skel = [ ]
 
-        for b in ast_bytes:
-            if b.op == 'BVV':
-                self.receives.append("blank_receive(0, %d);" % (b.size() / 8))
-            else:
-                minimized_ast_skel.append(b)
-                self.receives.append("get_output(%d);" % (b.size() / 8))
+        i = 0
+        # really ugly code which gathers all receives together
+        # so 5 consecutive reads of BVVs becomes a single receive of 5 bytes
+        while i < len(ast_bytes):
+            b_cnt = 0
+            while i < len(ast_bytes) and ast_bytes[i].op == 'BVV':
+                b_cnt += 1
+                i += 1
+
+            if b_cnt > 0:
+                self.receives.append("blank_receive(0, %d);" % b_cnt)
+
+            b_cnt = 0
+            while i < len(ast_bytes) and ast_bytes[i].op != 'BVV':
+                minimized_ast_skel.append(ast_bytes[i])
+                b_cnt += 1
+                i += 1
+
+            if b_cnt > 0:
+                self.receives.append("get_output(%d);" % b_cnt)
 
         # make the skeleton into an ast
         self.minimized_ast = claripy.Concat(*minimized_ast_skel)
