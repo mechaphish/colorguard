@@ -8,6 +8,7 @@ from .harvester import Harvester
 from .pov import ColorguardType2Exploit
 from .simprocedures import CacheReceive
 from .simprocedures import receive
+from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
 
@@ -48,7 +49,8 @@ class ColorGuard(object):
         cache_tuple = self._cache_lookup_hook()
 
         simprocedures = {'receive': CacheReceive}
-        self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, simprocedures=simprocedures)
+        remove_options = {so.SUPPORT_FLOATING_POINT}
+        self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options, simprocedures=simprocedures)
 
         # fix up the tracer so that it the input is completely concrete
         if cache_tuple is None:
@@ -135,7 +137,18 @@ class ColorGuard(object):
 
         st = self._leak_path.state
 
-        # check leaked bits
+        # remove constraints from the state which involve only the flagpage
+        new_cons = [ ]
+        for con in st.se.constraints:
+            if not any(map(lambda x: x.startswith('cgc-flag-data'), list(con.variables))):
+                new_cons.append(con)
+
+        st.release_plugin('solver_engine')
+        st.add_constraints(*new_cons)
+        st.downsize()
+        st.se.simplify()
+        st.se._solver.result = None
+
         simplified = st.se.simplify(self.leak_ast)
 
         harvester = Harvester(simplified)

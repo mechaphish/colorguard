@@ -128,6 +128,18 @@ def test_leak_no_exit():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_cromu_00070():
+    """
+    Test exploitation of CROMU_00070 given an input which causes a leak.
+    """
+
+    payload = "06000006020a00000000000000000000000c030c00000100e1f505000000000000eb".decode('hex')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "cgc_trials/CROMU_00070"), payload)
+
+    nose.tools.assert_true(cg.causes_leak())
+    pov = cg.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
+
 def run_all():
     functions = globals()
     all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
