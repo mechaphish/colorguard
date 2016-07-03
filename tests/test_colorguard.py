@@ -55,6 +55,17 @@ def test_simple_leak4():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_simple_leak5():
+    """
+    Test detection of a leak individual bits of the flag are leaked out
+    """
+
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak5'), '\x00' * 0x20)
+
+    nose.tools.assert_true(cg.causes_leak())
+    pov = cg.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
+
 def test_big_leak():
     """
     Test detection of a leak where 0x8000 concrete bytes are written to stdout before a the secret is leaked.
