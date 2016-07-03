@@ -108,7 +108,24 @@ class ColorGuard(object):
         with open(self._cache_file, 'w') as f:
             f.write(ptuple)
 
+    def _concrete_difference(self):
+        """
+        Does an input when ran concretely produce two separate outputs?
+        If it causes a leak it should, but if the outputs differ
+        it is not guaranteed there is a leak.
+
+        :return: true if the there is a concrete difference
+        """
+
+        r1 = tracer.Runner(self.binary, input=self.payload, record_stdout=True, seed=0x41414141)
+        r2 = tracer.Runner(self.binary, input=self.payload, record_stdout=True, seed=0x56565656)
+
+        return r1.stdout != r2.stdout
+
     def causes_leak(self):
+
+        if not self._concrete_difference():
+            return False
 
         self._leak_path, _ = self._tracer.run()
 
