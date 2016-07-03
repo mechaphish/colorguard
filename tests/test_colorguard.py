@@ -128,6 +128,17 @@ def test_leak_no_exit():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_concrete_difference_filtering():
+    """
+    Test the ability to filter inputs which cause no output difference when ran concretely.
+    """
+
+    payload = "313131313131313131313131313131310a".decode('hex')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "cgc_trials/CROMU_00070"), payload)
+
+    nose.tools.assert_false(cg.causes_leak())
+    nose.tools.assert_true(cg._no_concrete_difference)
+
 def run_all():
     functions = globals()
     all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))

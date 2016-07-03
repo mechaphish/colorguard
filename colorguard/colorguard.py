@@ -43,6 +43,9 @@ class ColorGuard(object):
         # will be set by causes_leak
         self._leak_path = None
 
+        # set only for testing purposes
+        self._no_concrete_difference = False
+
         receive.cache_hook = self._cache_hook
         self.loaded_from_cache = False
         cache_tuple = self._cache_lookup_hook()
@@ -125,6 +128,7 @@ class ColorGuard(object):
     def causes_leak(self):
 
         if not self._concrete_difference():
+            self._no_concrete_difference = True
             return False
 
         self._leak_path, _ = self._tracer.run()
