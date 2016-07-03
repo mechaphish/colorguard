@@ -57,7 +57,7 @@ def test_simple_leak4():
 
 def test_simple_leak5():
     """
-    Test detection of a leak individual bits of the flag are leaked out
+    Test detection of a leak where individual bits of the flag are leaked out
     """
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak5'), '\x00' * 0x20)
