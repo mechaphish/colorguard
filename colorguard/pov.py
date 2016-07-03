@@ -103,6 +103,10 @@ class ColorguardType2Exploit(object):
         c_code = self.dump_c()
         compiled_result = compilerex.compile_from_string(c_code,
                                                          filename=filename)
+
+        if filename:
+            return None
+
         return compiled_result
 
     def test_binary(self, enable_randomness=True):
