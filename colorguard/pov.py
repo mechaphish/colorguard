@@ -1,9 +1,8 @@
 import os
 import tempfile
 import compilerex
-from .harvester import Harvester
+from povsim import CGCPovSimulator
 from .c_templates import c_template
-from rex.pov_testing import CGCPovTester
 
 import logging
 
@@ -118,7 +117,7 @@ class ColorguardType2Exploit(object):
         pov_binary_filename = tempfile.mktemp(dir='/tmp', prefix='colorguard-pov-')
         self.dump_binary(filename=pov_binary_filename)
 
-        pov_tester = CGCPovTester()
+        pov_tester = CGCPovSimulator()
         result = pov_tester.test_binary_pov(pov_binary_filename, self.binary, enable_randomness)
 
         os.remove(pov_binary_filename)
