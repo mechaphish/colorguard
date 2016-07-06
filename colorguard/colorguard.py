@@ -117,7 +117,7 @@ class ColorGuard(object):
 
         harvester = Harvester(simplified, st.copy(), flag_var)
 
-        output_var = claripy.BVS('output_var', harvester.minimized_ast.size())
+        output_var = claripy.BVS('output_var', harvester.minimized_ast.size()) #pylint:disable=no-member
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
