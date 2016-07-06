@@ -14,8 +14,12 @@ class Harvester(object):
     harvest information from an angr AST
     """
 
-    def __init__(self, ast):
+    def __init__(self, ast, state, flag_var):
         self.ast = ast
+
+        self.state = state
+
+        self.flag_var = flag_var
 
         self.leaked_bits = set()
 
@@ -111,22 +115,49 @@ class Harvester(object):
         # no more processing
         return bit_cnts
 
+    def _confident_byte(self, ss, byte):
+
+        for b in byte:
+            flag_idx = self.flag_var.size() - 1 - b
+            pos = ss.se.any_n_int(self.flag_var[flag_idx], 2)
+            if len(pos) > 1:
+                return False
+
+        return True
+
     def get_largest_consecutive(self):
 
-        max_s = -1
-        max_bg = [ ]
+        # extra work here because we need to be confident about the bytes
+
+        ss = self.state.copy()
+        ss.add_constraints(self.minimized_ast == ss.se.BVV(ss.se.any_str(self.minimized_ast)))
+
+        leaked_bytes = [ ]
         for bg in self.bit_groups:
-            cur_s = len(bg)
-            if cur_s > max_s:
-                max_s = cur_s
-                max_bg = bg
+
+            # find the beginning of the bitgroup on the granularity of a byte
+            gbg = list(bg)
+            while len(gbg) > 0 and gbg[0] % 8 != 0:
+                gbg = gbg[1:]
+
+            for byte in chunks(bg, 8):
+                if self._confident_byte(ss, byte) and len(byte) == 8:
+                    leaked_bytes.append(byte)
 
         # into bytes
         byte_group = [ ]
-        for c in chunks(max_bg, 8):
+        for c in leaked_bytes:
             byte_group.append(c[0] / 8)
 
-        return byte_group
+        byte_group = sorted(set(byte_group))
+
+        consec_bytes = [ ]
+        # find consecutive leaked bytes
+        for _, g in groupby(enumerate(byte_group), lambda (i,x):i-x):
+            consec_bytes.append(map(itemgetter(1), g))
+
+        ordered_bytes = sorted(consec_bytes, key=len)
+        return ordered_bytes[0] if len(ordered_bytes) > 0 else [ ]
 
     def count_bytes(self):
 

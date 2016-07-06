@@ -159,6 +159,9 @@ class ColorGuard(object):
         st = self._leak_path.state
 
         # remove constraints from the state which involve only the flagpage
+        # this solves a problem with CROMU_00070, where the floating point
+        # operations have to be done concretely and constrain the flagpage
+        # to being a single value
         new_cons = [ ]
         for con in st.se.constraints:
             if not any(map(lambda x: x.startswith('cgc-flag-data'), list(con.variables))):
@@ -172,7 +175,11 @@ class ColorGuard(object):
 
         simplified = st.se.simplify(self.leak_ast)
 
-        harvester = Harvester(simplified)
+        flag_vars = filter(lambda x: x.startswith('cgc-flag-data'), list(self.leak_ast.variables))
+        assert len(flag_vars) == 1, "multiple flag variables, requires further attention"
+        flag_var = claripy.BVS(flag_vars[0], 0x1000 * 8, explicit_name=True)
+
+        harvester = Harvester(simplified, st.copy(), flag_var)
 
         output_var = claripy.BVS('output_var', harvester.minimized_ast.size())
 

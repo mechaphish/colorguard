@@ -27,7 +27,6 @@ class ColorguardType2Exploit(object):
         self.output_var = output_var
         self.method_name = 'circumstantial'
 
-
         leaked_bytes = harvester.get_largest_consecutive()
         assert len(leaked_bytes) >= 4, "input does not leak enough bytes, 4 bytes required"
 
