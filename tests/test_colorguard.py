@@ -66,6 +66,17 @@ def test_simple_leak5():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_choose_leak():
+    """
+    Test colorguard choosing the correct flag page bytes must be reversed.
+    """
+
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/choose_leak'), 'foobar')
+
+    nose.tools.assert_true(cg.causes_leak())
+    pov = cg.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
+
 def test_big_leak():
     """
     Test detection of a leak where 0x8000 concrete bytes are written to stdout before a the secret is leaked.
