@@ -117,7 +117,7 @@ def test_caching():
 
     cg2 = colorguard.ColorGuard(os.path.join(bin_location, 'shellphish/PIZZA_00001'), payload)
 
-    nose.tools.assert_true(cg2.loaded_from_cache)
+    nose.tools.assert_true(cg2._tracer._loaded_from_cache)
 
     # and insure the cache-loaded version still works
     nose.tools.assert_true(cg2.causes_leak())
