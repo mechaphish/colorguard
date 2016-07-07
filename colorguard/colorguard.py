@@ -3,6 +3,7 @@ import tracer
 import claripy
 from .harvester import Harvester
 from .pov import ColorguardType2Exploit
+from rex.crash import ChallRespInfo
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
@@ -72,7 +73,6 @@ class ColorGuard(object):
         self._leak_path, _ = self._tracer.run()
 
         stdout = self._leak_path.state.posix.files[1]
-
         tmp_pos = stdout.read_pos
         stdout.pos = 0
 
@@ -85,7 +85,7 @@ class ColorGuard(object):
 
         return False
 
-    def attempt_pov(self):
+    def attempt_pov(self, enabled_chall_resp=False):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
@@ -121,14 +121,16 @@ class ColorGuard(object):
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
-        exploit = ColorguardType2Exploit(self.binary,
-                st, self.payload, harvester, simplified, output_var)
-        __import__("ipdb").set_trace()
+        exploit = ColorguardType2Exploit(self.binary, st,
+                                         self.payload, harvester,
+                                         simplified, output_var)
 
-        l.info('testing for challenge response')
-        if self._challenge_response_exists(exploit):
-            l.warning('challenge response detected')
-            exploit = self._prep_challenge_response()
+        # only want to try this once
+        if not enabled_chall_resp:
+            l.info('testing for challenge response')
+            if self._challenge_response_exists(exploit):
+                l.warning('challenge response detected')
+                exploit = self._prep_challenge_response()
 
         return exploit
 
@@ -149,7 +151,8 @@ class ColorGuard(object):
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
         self._tracer = tracer.Tracer(self.binary, self.payload, remove_options=remove_options)
+        ChallRespInfo.prep_state(self._tracer.path_group.one_active.state)
 
         assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
 
-        return self.attempt_pov()
+        return self.attempt_pov(enabled_chall_resp=True)

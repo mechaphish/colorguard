@@ -2,12 +2,14 @@ import claripy
 from itertools import groupby
 from operator import itemgetter
 
+
 def chunks(l, n):
     out = [ ]
     for i in xrange(0, len(l), n):
         out.append(l[i:i+n])
 
     return out
+
 
 class Harvester(object):
     """
@@ -59,7 +61,7 @@ class Harvester(object):
                 minimized_ast_skel.append(b)
                 self.output_bytes.append(i)
 
-
+        # pylint: disable=pointless-string-statement
         '''
         # really ugly code which gathers all receives together
         # so 5 consecutive reads of BVVs becomes a single receive of 5 bytes
@@ -88,37 +90,43 @@ class Harvester(object):
             if b_cnt > 0:
                 self.receives.append("get_output(%d);" % b_cnt)
         '''
+        # pylint: enable=pointless-string-statement
 
         # make the skeleton into an ast
         self.minimized_ast = claripy.Concat(*minimized_ast_skel)
 
-    def _count_bits_inner(self, ast):
+    def _count_bits_inner(self, ast, seen=None):
         """
-        Recursive descent.
+        Recursively grab flag bits
+        """
 
-        push inverse operation and arguments for each op in original tree
-        """
+        if seen is None:
+            seen = set()
 
         if not isinstance(ast, claripy.ast.bv.BV):
             return [ ]
+
+        # avoid checking the same ast multiple times
+        if ast.cache_key in seen:
+            return [ ]
+        seen.add(ast.cache_key)
 
         op = ast.op
 
         bit_cnts = [ ]
 
         # an extract of the flag page data
-        if op == 'Extract' and ast.args[2].op == 'BVS':
+        if op == 'Extract' and ast.args[2].op == 'BVS' and len(ast.variables) == 1 and \
+                list(ast.variables)[0].startswith("cgc-flag"):
             end_index = ast.args[0]
             start_index = ast.args[1]
 
-            # special case if the extract is on the flag page
-            if ast.args[2].op == 'BVS':
-                sz = ast.args[2].size() - 1
-                return map(lambda x: sz - x,
-                        range(start_index, end_index+1))
+            sz = ast.args[2].size() - 1
+            return map(lambda x: sz - x,
+                       range(start_index, end_index+1))
 
         for arg in ast.args:
-            bit_cnts.extend(self._count_bits_inner(arg))
+            bit_cnts.extend(self._count_bits_inner(arg, seen))
 
         # no more processing
         return bit_cnts
