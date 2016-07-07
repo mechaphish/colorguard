@@ -33,8 +33,8 @@ class Harvester(object):
         # receive code
         self.receives = [ ]
 
-        # set by count_bits_inner
         self.minized_ast = None
+        self.output_bytes = [ ]
 
         self._minimize_ast()
 
@@ -54,6 +54,13 @@ class Harvester(object):
         minimized_ast_skel = [ ]
 
         i = 0
+        for i, b in enumerate(ast_bytes):
+            if b.op != 'BVV':
+                minimized_ast_skel.append(b)
+                self.output_bytes.append(i)
+
+
+        '''
         # really ugly code which gathers all receives together
         # so 5 consecutive reads of BVVs becomes a single receive of 5 bytes
         bits_accounted_for = set()
@@ -80,6 +87,7 @@ class Harvester(object):
 
             if b_cnt > 0:
                 self.receives.append("get_output(%d);" % b_cnt)
+        '''
 
         # make the skeleton into an ast
         self.minimized_ast = claripy.Concat(*minimized_ast_skel)

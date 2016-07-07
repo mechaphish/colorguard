@@ -7,6 +7,8 @@ c_template = """
 /* global output data */
 char *output;
 size_t output_size;
+unsigned int cgc_flag_data_idx;
+char received_data[{recv_buf_len}];
 
 enum register_t
 {
@@ -71,6 +73,51 @@ size_t receive_n( int fd, unsigned char *dst, size_t n_bytes )
   return len;
 }
 
+int fd_ready_timeout(int fd, int timeout_us) {
+  struct timeval tv;
+  fd_set rfds;
+  int readyfds = 0;
+
+  FD_SET(fd, &rfds);
+
+  tv.tv_sec = timeout_us/1000000;
+  tv.tv_usec = timeout_us % 1000000;
+
+  int ret;
+  ret = fdwait(fd + 1, &rfds, NULL, &tv, &readyfds);
+
+  /* bail if fdwait fails */
+  if (ret != 0) {
+    return 0;
+  }
+  if (readyfds == 0)
+    return 0;
+
+  return 1;
+}
+
+size_t receive_n_timeout( int fd, void *dst_buf, size_t n_bytes, int timeout_us )
+{
+  char *dst = dst_buf;
+  size_t len = 0;
+  size_t rx = 0;
+  while(len < n_bytes) {
+    if (!fd_ready_timeout(fd, timeout_us)) {
+      return len;
+    }
+    if (receive(fd, dst + len, n_bytes - len, &rx) != 0) {
+      len = 0;
+      break;
+    }
+    if (rx == 0) {
+      return len;
+    }
+    len += rx;
+  }
+
+  return len;
+}
+
 /*
  * Receive n_bytes into no particular buffer.
  */
@@ -125,35 +172,24 @@ void to_bits(char *dst, char c) {
     }
 }
 
-void get_output(size_t n_bytes) {
-    unsigned char *buf = malloc(n_bytes);
-    if (!buf)
-      die("receive buffer malloc failed");
-
-    receive_n(0, buf, n_bytes);
+void append_byte_to_output(int byte_idx) {
 
     // convert it to a bitstring
-    //  
     if (output)
-        output = realloc(output, output_size + (n_bytes * 8) + 1); 
+        output = realloc(output, output_size + 8 + 1); 
     else
-        output = malloc(n_bytes * 8 + 1); 
+        output = malloc(8 + 1); 
 
     char *bitbuf = output;
     if (!bitbuf)
       die("bitbuf malloc failed");
 
-    size_t i;
-    for(i=0;i<n_bytes;i++) {
-        to_bits(bitbuf + output_size + (i * 8), buf[i]);
-    }   
+    to_bits(bitbuf + output_size, received_data[byte_idx]);
 
-    bitbuf[output_size + n_bytes * 8] = '\\0';
+    bitbuf[output_size + 8] = '\\0';
 
     /* update output size */
-    output_size = output_size + n_bytes * 8;
-
-    free(buf);
+    output_size = output_size + 8;
 }
 
 typedef struct type1_vals_ {
@@ -226,44 +262,49 @@ int type2_submit(const unsigned char *val, size_t len) {
    return send_all(3, val, len);
 }
 
+void constrain_output_var(Btor *btor, int output_var_idx) {
+  cgc_flag_data_idx = 5 - output_var_idx;
+
+  {byte_getting_code}
+
+  BoolectorNode *output_val_var = boolector_match_node_by_id(btor, output_var_idx);
+  BoolectorNode *output_val = boolector_const(btor, output);
+  BoolectorNode *con = boolector_eq(btor, output_val_var, output_val);
+  boolector_assert(btor, con);
+}
 
 int do_pov() {
   type2_vals t2vals;
   if (type2_negotiate(&t2vals) != 0) {
-    _terminate(0);
+    die("type 2 negotiate failure\\n");
   }
-
-  Btor *btor = boolector_new();
-
-  boolector_set_opt(btor, "model_gen", 1);
-
-  const char *smt_stmt = {smt_stmt};
 
   char *error;
   int status;
-  boolector_parse(btor, smt_stmt, &error, &status);
-  if (error)
-    die(error);
 
-  char payload[] = "{payload}";
+  char payload[] = "{raw_payload}";
 
-  send_all(1, payload, {payloadsize});
+  BoolectorNode *cur_byte;
 
-  {receive_code}
+  size_t payload_len = {payload_len};
 
-  BoolectorNode *output_var = boolector_match_node_by_id(btor, {output_var_idx});
-  BoolectorNode *cgc_flag_var = boolector_match_node_by_id(btor, {cgc_flag_data_idx});
+  // current position in the payload
+  size_t payload_off = 0;
+  size_t recv_off = 0;
 
-  BoolectorNode *output_val = boolector_const(btor, output);
+  // BoolectorNodes for use in challenge response
+  BoolectorNode *stdout_val_var;
+  BoolectorNode *stdout_val;
+  BoolectorNode *stdout_con;
 
-  BoolectorNode *out_cons = boolector_eq(btor, output_var, output_val);
+  send_all(1, payload+payload_off, payload_len-payload_off);
 
-  boolector_assert(btor, out_cons);
+  recv_off += receive_n_timeout(0, received_data+recv_off, {recv_buf_len}, 500000);
+  {solver_code}
 
-  if (boolector_sat(btor) != BOOLECTOR_SAT)
-    die("unsat");
+  BoolectorNode *cgc_flag_var = boolector_match_node_by_id(btor_0, cgc_flag_data_idx);
 
-  char *flag_data = boolector_bv_assignment(btor, cgc_flag_var);
+  char *flag_data = boolector_bv_assignment(btor_0, cgc_flag_var);
 
   char flag[4];
 

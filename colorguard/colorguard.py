@@ -100,7 +100,7 @@ class ColorGuard(object):
         # to being a single value
         new_cons = [ ]
         for con in st.se.constraints:
-            if not any(map(lambda x: x.startswith('cgc-flag-data'), list(con.variables))):
+            if not (len(con.variables) == 1 and list(con.variables)[0].startswith('cgc-flag-data')):
                 new_cons.append(con)
 
         st.release_plugin('solver_engine')
@@ -117,14 +117,39 @@ class ColorGuard(object):
 
         harvester = Harvester(simplified, st.copy(), flag_var)
 
-        output_var = claripy.BVS('output_var', harvester.minimized_ast.size()) #pylint:disable=no-member
+        output_var = claripy.BVS('output_var', harvester.minimized_ast.size(), explicit_name=True) #pylint:disable=no-member
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
-        ft = self._leak_path.state.se._solver._merged_solver_for(
-                lst=[simplified])
+        exploit = ColorguardType2Exploit(self.binary,
+                st, self.payload, harvester, simplified, output_var)
+        __import__("ipdb").set_trace()
 
-        smt_stmt = ft._get_solver().to_smt2()
+        l.info('testing for challenge response')
+        if self._challenge_response_exists(exploit):
+            l.warning('challenge response detected')
+            exploit = self._prep_challenge_response()
 
-        return ColorguardType2Exploit(self.binary,
-                self.payload, harvester, smt_stmt, output_var)
+        return exploit
+
+### CHALLENGE RESPONSE
+
+    @staticmethod
+    def _challenge_response_exists(exploit):
+
+        for _ in range(10):
+            if exploit.test_binary(enable_randomness=True):
+                return False
+
+        return True
+
+    def _prep_challenge_response(self):
+
+        # need to re-trace the binary with stdin symbolic
+
+        remove_options = {so.SUPPORT_FLOATING_POINT}
+        self._tracer = tracer.Tracer(self.binary, self.payload, remove_options=remove_options)
+
+        assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
+
+        return self.attempt_pov()
