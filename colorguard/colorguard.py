@@ -3,6 +3,7 @@ import tracer
 import claripy
 from .harvester import Harvester
 from .pov import ColorguardType2Exploit
+from rex.crash import ChallRespInfo
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
@@ -72,7 +73,6 @@ class ColorGuard(object):
         self._leak_path, _ = self._tracer.run()
 
         stdout = self._leak_path.state.posix.files[1]
-
         tmp_pos = stdout.read_pos
         stdout.pos = 0
 
@@ -85,7 +85,7 @@ class ColorGuard(object):
 
         return False
 
-    def attempt_pov(self):
+    def attempt_pov(self, enabled_chall_resp=False):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
@@ -100,7 +100,7 @@ class ColorGuard(object):
         # to being a single value
         new_cons = [ ]
         for con in st.se.constraints:
-            if not any(map(lambda x: x.startswith('cgc-flag-data'), list(con.variables))):
+            if not (len(con.variables) == 1 and list(con.variables)[0].startswith('cgc-flag-data')):
                 new_cons.append(con)
 
         st.release_plugin('solver_engine')
@@ -117,14 +117,42 @@ class ColorGuard(object):
 
         harvester = Harvester(simplified, st.copy(), flag_var)
 
-        output_var = claripy.BVS('output_var', harvester.minimized_ast.size()) #pylint:disable=no-member
+        output_var = claripy.BVS('output_var', harvester.minimized_ast.size(), explicit_name=True) #pylint:disable=no-member
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
-        ft = self._leak_path.state.se._solver._merged_solver_for(
-                lst=[simplified])
+        exploit = ColorguardType2Exploit(self.binary, st,
+                                         self.payload, harvester,
+                                         simplified, output_var)
 
-        smt_stmt = ft._get_solver().to_smt2()
+        # only want to try this once
+        if not enabled_chall_resp:
+            l.info('testing for challenge response')
+            if self._challenge_response_exists(exploit):
+                l.warning('challenge response detected')
+                exploit = self._prep_challenge_response()
 
-        return ColorguardType2Exploit(self.binary,
-                self.payload, harvester, smt_stmt, output_var)
+        return exploit
+
+### CHALLENGE RESPONSE
+
+    @staticmethod
+    def _challenge_response_exists(exploit):
+
+        for _ in range(10):
+            if exploit.test_binary(enable_randomness=True):
+                return False
+
+        return True
+
+    def _prep_challenge_response(self):
+
+        # need to re-trace the binary with stdin symbolic
+
+        remove_options = {so.SUPPORT_FLOATING_POINT}
+        self._tracer = tracer.Tracer(self.binary, self.payload, remove_options=remove_options)
+        ChallRespInfo.prep_state(self._tracer.path_group.one_active.state)
+
+        assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
+
+        return self.attempt_pov(enabled_chall_resp=True)
