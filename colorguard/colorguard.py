@@ -3,7 +3,7 @@ import tracer
 import claripy
 from .harvester import Harvester
 from .pov import ColorguardType2Exploit
-from rex.crash import ChallRespInfo
+from rex.trace_additions import ChallRespInfo
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
@@ -18,10 +18,11 @@ class ColorGuard(object):
     Most logic is offloaded to the tracer.
     """
 
-    def __init__(self, binary, payload):
+    def __init__(self, binary, payload, format_infos=None):
         """
         :param binary: path to the binary which is suspect of leaking
         :param payload: concrete input string to feed to the binary
+        :param format_infos: a list of atoi FormatInfo objects that should be used when analyzing the crash
         """
 
         self.binary = binary
@@ -145,13 +146,13 @@ class ColorGuard(object):
 
         return True
 
-    def _prep_challenge_response(self):
+    def _prep_challenge_response(self, format_infos=None):
 
         # need to re-trace the binary with stdin symbolic
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
         self._tracer = tracer.Tracer(self.binary, self.payload, remove_options=remove_options)
-        ChallRespInfo.prep_state(self._tracer.path_group.one_active.state)
+        ChallRespInfo.prep_tracer(self._tracer, format_infos)
 
         assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
 

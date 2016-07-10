@@ -89,6 +89,17 @@ class ColorguardType2Exploit(CGCExploit):
         fmt_args["btor_name"] = self._formulas[-1].name
         fmt_args["cgc_flag_data_idx"] = str(self._formulas[-1].name_to_id[self._flag_var_name])
 
+        # int stuff
+        fmt_args["payload_int_start_locations"] = self._make_c_int_arr([x.start for x in self._sorted_stdin_int_infos])
+        fmt_args["payload_int_bases"] = self._make_c_int_arr([x.base for x in self._sorted_stdin_int_infos])
+        fmt_args["payload_int_expected_lens"] = self._make_c_int_arr([x.size for x in self._sorted_stdin_int_infos])
+        fmt_args["recv_int_start_locations"] = self._make_c_int_arr([x.start for x in self._sorted_stdout_int_infos])
+        fmt_args["recv_int_bases"] = self._make_c_int_arr([x.base for x in self._sorted_stdout_int_infos])
+        fmt_args["recv_int_expected_lens"] = self._make_c_int_arr([x.size for x in self._sorted_stdout_int_infos])
+        fmt_args["num_payload_ints"] = str(len(self._sorted_stdin_int_infos))
+        fmt_args["num_recv_ints"] = str(len(self._sorted_stdout_int_infos))
+
+
         c_code = c_template
         for k, v in fmt_args.items():
             c_code = c_code.replace("{%s}" % k, v)
