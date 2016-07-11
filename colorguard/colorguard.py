@@ -1,6 +1,7 @@
 import os
 import tracer
 import claripy
+import random
 from .harvester import Harvester
 from .pov import ColorguardType2Exploit
 from rex.trace_additions import ChallRespInfo
@@ -65,11 +66,49 @@ class ColorGuard(object):
 
         return r1.stdout != r2.stdout
 
+    def _find_naive_leaks(self, seed=None):
+        """
+        Naive implementation of colorguard which looks for concrete leaks of
+        the flag page.
+        """
+
+        if seed is None:
+            seed = random.randint(0, 2**32)
+
+        r1 = tracer.Runner(self.binary,
+                input=self.payload,
+                record_magic=True,
+                record_stdout=True,
+                seed=seed)
+
+        magic_page = r1.magic
+
+        stdout = r1.stdout
+
+        # byte indices where a leak might have occured
+        potential_leaks = [ ]
+        for i, b in enumerate(stdout):
+            try:
+                v = magic_page.index(b)
+                potential_leaks.append((i, v))
+            except ValueError:
+                pass 
+
+        return potential_leaks
+
+    def _try_naive(self):
+
+        leaked_sets = [ ]
+        for _ in range(3):
+            leaked_sets.append(self._find_naive_leaks())
+            
     def causes_leak(self):
 
         if not self._concrete_difference():
             self._no_concrete_difference = True
             return False
+
+        self._try_naive()
 
         self._leak_path, _ = self._tracer.run()
 
