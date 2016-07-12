@@ -163,10 +163,14 @@ class ColorGuard(object):
 
         st = self._leak_path.state
 
+        # switch to a composite solver
+        self._tracer.remove_preconstraints(self._leak_path, simplify=False)
+
         # remove constraints from the state which involve only the flagpage
         # this solves a problem with CROMU_00070, where the floating point
         # operations have to be done concretely and constrain the flagpage
         # to being a single value
+        # FIXME chris look at this, does it filter anything
         new_cons = [ ]
         for con in st.se.constraints:
             if not (len(con.variables) == 1 and list(con.variables)[0].startswith('cgc-flag-data')):
@@ -177,9 +181,6 @@ class ColorGuard(object):
         st.downsize()
         st.se.simplify()
         st.se._solver.result = None
-
-        # switch to a composite solver
-        self._tracer.remove_preconstraints(self._leak_path)
 
         simplified = st.se.simplify(self.leak_ast)
 
