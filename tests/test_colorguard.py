@@ -162,6 +162,17 @@ def test_cromu_00070():
     pov = cg.attempt_pov()
     nose.tools.assert_true(pov.test_binary())
 
+def test_dumb_leaking():
+    """
+    Test the ability to quickly exploit really simple leaks.
+    """
+
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/random_flag"), "foobar")
+
+    nose.tools.assert_true(cg.causes_dumb_leak())
+    pov = cg.attempt_dumb_pov()
+    nose.tools.assert_true(pov.test_binary())
+
 def run_all():
     functions = globals()
     all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
