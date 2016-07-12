@@ -37,9 +37,6 @@ class ColorGuard(object):
         # will be set by causes_leak
         self._leak_path = None
 
-        # list of bytes leaked through the naive method
-        self._naively_leaked_bytes = [ ]
-
         remove_options = {so.SUPPORT_FLOATING_POINT}
         self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options)
 
@@ -57,28 +54,7 @@ class ColorGuard(object):
 
         self.leak_ast = None
 
-    def _concrete_difference(self):
-        """
-        Does an input when ran concretely produce two separate outputs?
-        If it causes a leak it should, but if the outputs differ
-        it is not guaranteed there is a leak.
-
-        :return: true if the there is a concrete difference
-        """
-
-        r1 = tracer.Runner(self.binary, input=self.payload, record_stdout=True, seed=0x41414141)
-        r2 = tracer.Runner(self.binary, input=self.payload, record_stdout=True, seed=0x56565656)
-
-        # mark a flag so we can test this method's effectiveness
-        self._no_concrete_difference = r1.stdout == r2.stdout
-
-        return not self._no_concrete_difference
-
-    def _find_naive_leaks(self, seed=None):
-        """
-        Naive implementation of colorguard which looks for concrete leaks of
-        the flag page.
-        """
+    def _concrete_leak_info(self, seed=None):
 
         if seed is None:
             seed = random.randint(0, 2**32)
@@ -89,9 +65,67 @@ class ColorGuard(object):
                 record_stdout=True,
                 seed=seed)
 
-        magic = r1.magic
+        return (r1.stdout, r1.magic)
 
-        stdout = r1.stdout
+    def _concrete_difference(self):
+        """
+        Does an input when ran concretely produce two separate outputs?
+        If it causes a leak it should, but if the outputs differ
+        it is not guaranteed there is a leak.
+
+        :return: True if the there is a concrete difference
+        """
+
+        s1, _ = self._concrete_leak_info()
+        s2, _ = self._concrete_leak_info()
+
+        # mark a flag so we can test this method's effectiveness
+        self._no_concrete_difference = s1 == s2
+
+        return not self._no_concrete_difference
+
+    def causes_dumb_leak(self):
+
+        return self._concrete_difference()
+
+    def _find_dumb_leaks(self):
+
+        s1, m1 = self._concrete_leak_info()
+
+        potential_leaks = [ ]
+        for i in xrange(len(s1)):
+            pchunk = s1[i:i+4]
+            if len(pchunk) == 4 and pchunk in m1:
+                potential_leaks.append(i)
+
+        return (potential_leaks, s1)
+
+    def attempt_dumb_pov(self):
+
+        p1, stdout = self._find_dumb_leaks()
+        p2, _ = self._find_dumb_leaks()
+
+        leaks = list(set(p1).intersection(set(p2)))
+
+        if leaks:
+            leaked_bytes = range(leaks[0], leaks[0]+4)
+            l.info("Found dumb leak which leaks bytes %s", leaked_bytes)
+
+            return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), leaked_bytes)
+        else:
+            l.debug("No dumb leak found")
+
+    def causes_naive_leak(self):
+
+        return self.causes_dumb_leak()
+
+    def _find_naive_leaks(self, seed=None):
+        """
+        Naive implementation of colorguard which looks for concrete leaks of
+        the flag page.
+        """
+
+        stdout, magic = self._concrete_leak_info(seed=seed)
 
         # byte indices where a leak might have occured
         potential_leaks = dict()
@@ -126,16 +160,13 @@ class ColorGuard(object):
 
         if len(lgroups):
             l.info("Found naive leak which leaks bytes %s", lgroups[0])
+            leaked_bytes = [ ]
             for b in leaked:
-                self._naively_leaked_bytes.append(leaked[b])
+                leaked_bytes.append(leaked[b])
 
-            return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), self._naively_leaked_bytes)
+            return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), leaked_bytes)
         else:
             l.debug("No naive leak found")
-
-    def causes_naive_leak(self):
-
-        return self._concrete_difference()
 
     def causes_leak(self):
 
