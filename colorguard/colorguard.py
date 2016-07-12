@@ -110,7 +110,7 @@ class ColorGuard(object):
         p2, _ = self._find_naive_leaks()
 
         leaked = dict()
-        for si in p1.keys():
+        for si in p1:
             if si in p2:
                 li = list(set(p2[si]).intersection(set(p1[si])))
                 if len(li) > 0:
@@ -119,14 +119,14 @@ class ColorGuard(object):
 
         # find four contiguous
         consecutive_groups = [ ]
-        for _, g in groupby(enumerate(sorted(leaked.keys())), lambda (i,x):i-x):
+        for _, g in groupby(enumerate(sorted(leaked)), lambda (i,x):i-x):
             consecutive_groups.append(map(itemgetter(1), g))
 
         lgroups = filter(lambda x: len(x) >= 4, consecutive_groups)
 
         if len(lgroups):
             l.info("Found naive leak which leaks bytes %s", lgroups[0])
-            for b in leaked.keys():
+            for b in leaked:
                 self._naively_leaked_bytes.append(leaked[b])
 
             return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), self._naively_leaked_bytes)
