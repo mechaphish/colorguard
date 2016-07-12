@@ -243,11 +243,7 @@ class ColorGuard(object):
     @staticmethod
     def _challenge_response_exists(exploit):
 
-        for _ in range(10):
-            if exploit.test_binary(enable_randomness=True):
-                return False
-
-        return True
+        return not any(exploit.test_binary(times=10, enable_randomness=True))
 
     def _prep_challenge_response(self, format_infos=None):
 
