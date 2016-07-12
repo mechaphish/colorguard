@@ -1,22 +1,13 @@
-import angr
 import compilerex
+from .fake_crash import FakeCrash
 from rex.exploit.cgc import CGCExploit
-from .c_templates import c_template
+from .c_templates import colorguard_c_template
 
 import logging
 
-l = logging.getLogger("colorguard.pov")
+l = logging.getLogger("colorguard.pov.ColorguardExploit")
 
-
-class FakeCrash(object):
-
-    def __init__(self, binary, state):
-        self.binary = binary
-        self.state = state
-        self.project = angr.Project(self.binary)
-
-
-class ColorguardType2Exploit(CGCExploit):
+class ColorguardExploit(CGCExploit):
     """
     A Type2 exploit created using the Colorgaurd approach.
     """
@@ -32,7 +23,7 @@ class ColorguardType2Exploit(CGCExploit):
         """
         # fake crash object
         crash = FakeCrash(binary, state)
-        super(ColorguardType2Exploit, self).__init__(crash, cgc_type=2, bypasses_nx=True, bypasses_aslr=True)
+        super(ColorguardExploit, self).__init__(crash, cgc_type=2, bypasses_nx=True, bypasses_aslr=True)
 
         self.binary = binary
         self.input_string = input_string
@@ -100,7 +91,7 @@ class ColorguardType2Exploit(CGCExploit):
         fmt_args["num_recv_ints"] = str(len(self._sorted_stdout_int_infos))
 
 
-        c_code = c_template
+        c_code = colorguard_c_template
         for k, v in fmt_args.items():
             c_code = c_code.replace("{%s}" % k, v)
 

@@ -1,4 +1,4 @@
-c_template = """
+colorguard_c_template = """
 #include <libcgc.h>
 #include <stdlib.h>
 #include <boolector.h>

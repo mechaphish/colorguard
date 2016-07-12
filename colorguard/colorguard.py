@@ -1,9 +1,11 @@
 import os
 import tracer
-import claripy
 import random
+import claripy
+from itertools import groupby
+from operator import itemgetter
 from .harvester import Harvester
-from .pov import ColorguardType2Exploit
+from .pov import ColorguardExploit, ColorguardNaiveExploit
 from rex.trace_additions import ChallRespInfo
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
@@ -35,6 +37,9 @@ class ColorGuard(object):
         # will be set by causes_leak
         self._leak_path = None
 
+        # list of bytes leaked through the naive method
+        self._naively_leaked_bytes = [ ]
+
         remove_options = {so.SUPPORT_FLOATING_POINT}
         self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options)
 
@@ -64,7 +69,10 @@ class ColorGuard(object):
         r1 = tracer.Runner(self.binary, input=self.payload, record_stdout=True, seed=0x41414141)
         r2 = tracer.Runner(self.binary, input=self.payload, record_stdout=True, seed=0x56565656)
 
-        return r1.stdout != r2.stdout
+        # mark a flag so we can test this method's effectiveness
+        self._no_concrete_difference = r1.stdout == r2.stdout
+
+        return not self._no_concrete_difference
 
     def _find_naive_leaks(self, seed=None):
         """
@@ -81,34 +89,58 @@ class ColorGuard(object):
                 record_stdout=True,
                 seed=seed)
 
-        magic_page = r1.magic
+        magic = r1.magic
 
         stdout = r1.stdout
 
         # byte indices where a leak might have occured
-        potential_leaks = [ ]
-        for i, b in enumerate(stdout):
+        potential_leaks = dict()
+        for si, b in enumerate(stdout):
             try:
-                v = magic_page.index(b)
-                potential_leaks.append((i, v))
+                indices = [i for i, x in enumerate(magic) if x == b]
+                potential_leaks[si] = indices
             except ValueError:
-                pass 
+                pass
 
-        return potential_leaks
+        return (potential_leaks, stdout)
 
-    def _try_naive(self):
+    def attempt_naive_pov(self):
 
-        leaked_sets = [ ]
-        for _ in range(3):
-            leaked_sets.append(self._find_naive_leaks())
-            
+        p1, stdout = self._find_naive_leaks()
+        p2, _ = self._find_naive_leaks()
+
+        leaked = dict()
+        for si in p1.keys():
+            if si in p2:
+                li = list(set(p2[si]).intersection(set(p1[si])))
+                if len(li) > 0:
+                    for lb in li:
+                        leaked[lb] = si
+
+        # find four contiguous
+        consecutive_groups = [ ]
+        for _, g in groupby(enumerate(sorted(leaked.keys())), lambda (i,x):i-x):
+            consecutive_groups.append(map(itemgetter(1), g))
+
+        lgroups = filter(lambda x: len(x) >= 4, consecutive_groups)
+
+        if len(lgroups):
+            l.info("Found naive leak which leaks bytes %s", lgroups[0])
+            for b in leaked.keys():
+                self._naively_leaked_bytes.append(leaked[b])
+
+            return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), self._naively_leaked_bytes)
+        else:
+            l.debug("No naive leak found")
+
+    def causes_naive_leak(self):
+
+        return self._concrete_difference()
+
     def causes_leak(self):
 
-        if not self._concrete_difference():
-            self._no_concrete_difference = True
+        if not self.causes_naive_leak():
             return False
-
-        self._try_naive()
 
         self._leak_path, _ = self._tracer.run()
 
@@ -161,9 +193,9 @@ class ColorGuard(object):
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
-        exploit = ColorguardType2Exploit(self.binary, st,
-                                         self.payload, harvester,
-                                         simplified, output_var)
+        exploit = ColorguardExploit(self.binary, st,
+                                    self.payload, harvester,
+                                    simplified, output_var)
 
         # only want to try this once
         if not enabled_chall_resp:
