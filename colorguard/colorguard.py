@@ -6,7 +6,7 @@ from itertools import groupby
 from operator import itemgetter
 from .harvester import Harvester
 from .pov import ColorguardExploit, ColorguardNaiveExploit
-from rex.trace_additions import ChallRespInfo
+from rex.trace_additions import ChallRespInfo, ZenPlugin
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
@@ -39,6 +39,7 @@ class ColorGuard(object):
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
         self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options)
+        ZenPlugin.prep_tracer(self._tracer)
 
         e_path = self._tracer.path_group.active[0]
 
@@ -182,7 +183,7 @@ class ColorGuard(object):
         output = stdout.read_from(tmp_pos)
 
         for var in output.variables:
-            if var.split("_")[0] == "cgc-flag-data":
+            if var.startswith("cgc-flag"):
                 self.leak_ast = output
                 return True
 
@@ -197,29 +198,29 @@ class ColorGuard(object):
         # switch to a composite solver
         self._tracer.remove_preconstraints(self._leak_path, simplify=False)
 
+        # get the flag var
+        flag_bytes = self._tracer.cgc_flag_bytes
+
         # remove constraints from the state which involve only the flagpage
         # this solves a problem with CROMU_00070, where the floating point
         # operations have to be done concretely and constrain the flagpage
         # to being a single value
-        # FIXME chris look at this, does it filter anything
+        zen_cache_keys = set(x.cache_key for x in st.get_plugin("zen_plugin").zen_constraints)
         new_cons = [ ]
         for con in st.se.constraints:
-            if not (len(con.variables) == 1 and list(con.variables)[0].startswith('cgc-flag-data')):
+            if con.cache_key in zen_cache_keys or not all(v.startswith("cgc-flag") for v in con.variables):
                 new_cons.append(con)
 
         st.release_plugin('solver_engine')
         st.add_constraints(*new_cons)
         st.downsize()
+
         st.se.simplify()
         st.se._solver.result = None
 
         simplified = st.se.simplify(self.leak_ast)
 
-        flag_vars = filter(lambda x: x.startswith('cgc-flag-data'), list(self.leak_ast.variables))
-        assert len(flag_vars) == 1, "multiple flag variables, requires further attention"
-        flag_var = claripy.BVS(flag_vars[0], 0x1000 * 8, explicit_name=True)
-
-        harvester = Harvester(simplified, st.copy(), flag_var)
+        harvester = Harvester(simplified, st.copy(), flag_bytes)
 
         output_var = claripy.BVS('output_var', harvester.minimized_ast.size(), explicit_name=True) #pylint:disable=no-member
 

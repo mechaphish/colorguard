@@ -537,15 +537,21 @@ int do_pov() {
   }
   recv_off += receive_n_timeout(0, received_data+real_recv_off(recv_off), real_recv_off({recv_buf_len}) - real_recv_off(recv_off), 500000);
 
-  BoolectorNode *cgc_flag_var = boolector_match_node_by_id({btor_name}, {cgc_flag_data_idx});
+  BoolectorNode *cgc_flag_0_var = boolector_match_node_by_id({btor_name}, {cgc_flag0_idx});
+  BoolectorNode *cgc_flag_1_var = boolector_match_node_by_id({btor_name}, {cgc_flag1_idx});
+  BoolectorNode *cgc_flag_2_var = boolector_match_node_by_id({btor_name}, {cgc_flag2_idx});
+  BoolectorNode *cgc_flag_3_var = boolector_match_node_by_id({btor_name}, {cgc_flag3_idx});
 
-  char *flag_data = boolector_bv_assignment({btor_name}, cgc_flag_var);
+  char *flag_byte1 = boolector_bv_assignment({btor_name}, cgc_flag_0_var);
+  char *flag_byte2 = boolector_bv_assignment({btor_name}, cgc_flag_1_var);
+  char *flag_byte3 = boolector_bv_assignment({btor_name}, cgc_flag_2_var);
+  char *flag_byte4 = boolector_bv_assignment({btor_name}, cgc_flag_3_var);
   char flag[4];
 
-  flag[0] = to_char(flag_data + {flag_byte_1} * 8);
-  flag[1] = to_char(flag_data + {flag_byte_2} * 8);
-  flag[2] = to_char(flag_data + {flag_byte_3} * 8);
-  flag[3] = to_char(flag_data + {flag_byte_4} * 8);
+  flag[0] = to_char(flag_byte1);
+  flag[1] = to_char(flag_byte2);
+  flag[2] = to_char(flag_byte3);
+  flag[3] = to_char(flag_byte4);
 
   type2_submit((unsigned char *)flag, t2vals.read_size);
 
