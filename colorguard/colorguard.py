@@ -90,9 +90,6 @@ class ColorGuard(object):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
-        # switch to a composite solver
-        self._tracer.remove_preconstraints(self._leak_path)
-
         st = self._leak_path.state
 
         # remove constraints from the state which involve only the flagpage
@@ -109,6 +106,9 @@ class ColorGuard(object):
         st.downsize()
         st.se.simplify()
         st.se._solver.result = None
+
+        # switch to a composite solver
+        self._tracer.remove_preconstraints(self._leak_path)
 
         simplified = st.se.simplify(self.leak_ast)
 
