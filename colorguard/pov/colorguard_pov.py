@@ -36,16 +36,19 @@ class ColorguardExploit(CGCExploit):
 
         self._arg_vars = [output_var]
         self._mem = leak_ast
-        self._flag_var_name = filter(lambda x: x.startswith("cgc-flag"), leak_ast.variables)[0]
 
-        self._generate_formula(extra_flag_solve=True)
+        self._flag_var_names = []
+        for i in leaked_bytes:
+            self._flag_var_names.append(list(harvester.flag_bytes[i].variables)[0])
+
+        self._generate_formula(extra_vars_to_solve=self._flag_var_names)
 
         self._byte_getting_code = self._generate_byte_getting_code()
 
-        self._flag_byte_1 = leaked_bytes[0]
-        self._flag_byte_2 = leaked_bytes[1]
-        self._flag_byte_3 = leaked_bytes[2]
-        self._flag_byte_4 = leaked_bytes[3]
+        self._flag_byte_0 = list(harvester.flag_bytes[leaked_bytes[0]].variables)[0]
+        self._flag_byte_1 = list(harvester.flag_bytes[leaked_bytes[1]].variables)[0]
+        self._flag_byte_2 = list(harvester.flag_bytes[leaked_bytes[2]].variables)[0]
+        self._flag_byte_3 = list(harvester.flag_bytes[leaked_bytes[3]].variables)[0]
 
     def _generate_byte_getting_code(self):
 
@@ -73,12 +76,11 @@ class ColorguardExploit(CGCExploit):
         fmt_args["solver_code"] = self._solver_code
         fmt_args["recv_buf_len"] = hex(self._recv_buf_len)
         fmt_args["byte_getting_code"] = self._byte_getting_code
-        fmt_args["flag_byte_1"] = hex(self._flag_byte_1)
-        fmt_args["flag_byte_2"] = hex(self._flag_byte_2)
-        fmt_args["flag_byte_3"] = hex(self._flag_byte_3)
-        fmt_args["flag_byte_4"] = hex(self._flag_byte_4)
         fmt_args["btor_name"] = self._formulas[-1].name
-        fmt_args["cgc_flag_data_idx"] = str(self._formulas[-1].name_to_id[self._flag_var_name])
+        fmt_args["cgc_flag0_idx"] = str(self._formulas[-1].name_to_id[self._flag_byte_0])
+        fmt_args["cgc_flag1_idx"] = str(self._formulas[-1].name_to_id[self._flag_byte_1])
+        fmt_args["cgc_flag2_idx"] = str(self._formulas[-1].name_to_id[self._flag_byte_2])
+        fmt_args["cgc_flag3_idx"] = str(self._formulas[-1].name_to_id[self._flag_byte_3])
 
         # int stuff
         fmt_args["payload_int_start_locations"] = self._make_c_int_arr([x.start for x in self._sorted_stdin_int_infos])
