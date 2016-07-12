@@ -18,8 +18,8 @@ def test_simple_leak1():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak1'), 'foobar')
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_simple_leak2():
@@ -29,8 +29,8 @@ def test_simple_leak2():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak2'), 'foobar')
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_simple_leak3():
@@ -40,8 +40,8 @@ def test_simple_leak3():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak3'), 'foobar')
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_simple_leak4():
@@ -51,8 +51,8 @@ def test_simple_leak4():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak4'), 'foobar')
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_simple_leak5():
@@ -62,8 +62,8 @@ def test_simple_leak5():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak5'), '\x00' * 0x20)
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_choose_leak():
@@ -73,8 +73,8 @@ def test_choose_leak():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/choose_leak'), 'foobar')
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_big_leak():
@@ -85,8 +85,8 @@ def test_big_leak():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/big_leak'), 'foobar')
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_double_leak():
@@ -100,8 +100,8 @@ def test_double_leak():
     payload = "320a310a0100000005000000330a330a340a".decode('hex')
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'shellphish/PIZZA_00001'), payload)
 
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_caching():
@@ -134,9 +134,8 @@ def test_leak_no_exit():
     payload = "320a330a".decode('hex')
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'shellphish/PIZZA_00001'), payload)
 
-    # of course run the thing and makes sure it works
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
+    pov = cg.attempt_exploit()
+    nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
 def test_concrete_difference_filtering():
@@ -149,18 +148,6 @@ def test_concrete_difference_filtering():
 
     nose.tools.assert_false(cg.causes_leak())
     nose.tools.assert_true(cg._no_concrete_difference)
-
-def test_cromu_00070():
-    """
-    Test exploitation of CROMU_00070 given an input which causes a leak.
-    """
-
-    payload = "06000006020a00000000000000000000000c030c00000100e1f505000000000000eb".decode('hex')
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "cgc_trials/CROMU_00070"), payload)
-
-    nose.tools.assert_true(cg.causes_leak())
-    pov = cg.attempt_pov()
-    nose.tools.assert_true(pov.test_binary())
 
 def test_dumb_leaking():
     """

@@ -51,7 +51,7 @@ class ColorGuard(object):
 
         # will be overwritten by _concrete_difference if the input was filtered
         # this attributed is used exclusively for testing at the moment
-        self._no_concrete_difference = False
+        self._no_concrete_difference = not self._concrete_difference()
 
         self.leak_ast = None
 
@@ -80,14 +80,11 @@ class ColorGuard(object):
         s1, _ = self._concrete_leak_info()
         s2, _ = self._concrete_leak_info()
 
-        # mark a flag so we can test this method's effectiveness
-        self._no_concrete_difference = s1 == s2
-
-        return not self._no_concrete_difference
+        return s1 != s2
 
     def causes_dumb_leak(self):
 
-        return self._concrete_difference()
+        return not self._no_concrete_difference
 
     def _find_dumb_leaks(self):
 
@@ -239,12 +236,32 @@ class ColorGuard(object):
 
         return exploit
 
+    def attempt_exploit(self):
+        """
+        Try all techniques
+        """
+
+        if self.causes_dumb_leak():
+            pov = self.attempt_dumb_pov()
+            if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=5)):
+                return pov
+
+        if self.causes_naive_leak():
+            pov = self.attempt_naive_pov()
+            if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=5)):
+                return pov
+
+        if self.causes_leak():
+            pov = self.attempt_pov()
+            if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=5)):
+                return pov
+
 ### CHALLENGE RESPONSE
 
     @staticmethod
     def _challenge_response_exists(exploit):
 
-        return not any(exploit.test_binary(times=10, enable_randomness=True))
+        return not any(exploit.test_binary(times=10, enable_randomness=True, timeout=5))
 
     def _prep_challenge_response(self, format_infos=None):
 
