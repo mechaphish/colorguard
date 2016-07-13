@@ -109,7 +109,7 @@ class ColorGuard(object):
             leaked_bytes = range(leaks[0], leaks[0]+4)
             l.info("Found dumb leak which leaks bytes %s", leaked_bytes)
 
-            return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), leaked_bytes)
+            return ColorguardNaiveExploit(self.binary, self.payload, leaked_bytes[-1]+1, leaked_bytes)
         else:
             l.debug("No dumb leak found")
 
@@ -162,7 +162,7 @@ class ColorGuard(object):
             for b in leaked:
                 leaked_bytes.append(leaked[b])
 
-            return ColorguardNaiveExploit(self.binary, self.payload, len(stdout), leaked_bytes)
+            return ColorguardNaiveExploit(self.binary, self.payload, max(leaked_bytes)+1, leaked_bytes)
         else:
             l.debug("No naive leak found")
 
@@ -245,16 +245,22 @@ class ColorGuard(object):
             pov = self.attempt_dumb_pov()
             if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=5)):
                 return pov
+            else:
+                l.warning("Dumb leak exploitation failed")
 
         if self.causes_naive_leak():
             pov = self.attempt_naive_pov()
             if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=5)):
                 return pov
+            else:
+                l.warning("Naive leak exploitation failed")
 
         if self.causes_leak():
             pov = self.attempt_pov()
             if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=5)):
                 return pov
+            else:
+                l.warning("Colorguard leak exploitation failed")
 
 ### CHALLENGE RESPONSE
 
