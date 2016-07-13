@@ -223,9 +223,14 @@ class ColorGuard(object):
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
+        leaked_bytes = harvester.get_largest_consecutive()
+        if len(leaked_bytes) < 4:
+            l.warning("input does not leak enough bytes, %d bytes leaked, need 4", len(leaked_bytes))
+            return None
+
         exploit = ColorguardExploit(self.binary, st,
                                     self.payload, harvester,
-                                    simplified, output_var)
+                                    simplified, output_var, leaked_bytes)
 
         # only want to try this once
         if not enabled_chall_resp:

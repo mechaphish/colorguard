@@ -12,7 +12,7 @@ class ColorguardExploit(CGCExploit):
     A Type2 exploit created using the Colorgaurd approach.
     """
 
-    def __init__(self, binary, state, input_string, harvester, leak_ast, output_var):
+    def __init__(self, binary, state, input_string, harvester, leak_ast, output_var, leaked_bytes):
         """
         :param binary: path to binary
         :param state: a state after the trace
@@ -20,6 +20,7 @@ class ColorguardExploit(CGCExploit):
         :param harvester: AST harvester object
         :param leak_ast: the ast that is leaked
         :param output_var: clarpiy output variable
+        :param leaked_bytes: flag bytes which were leaked
         """
         # fake crash object
         crash = FakeCrash(binary, state)
@@ -30,9 +31,6 @@ class ColorguardExploit(CGCExploit):
         self.harvester = harvester
         self.output_var = output_var
         self.method_name = 'circumstantial'
-
-        leaked_bytes = harvester.get_largest_consecutive()
-        assert len(leaked_bytes) >= 4, "input does not leak enough bytes, 4 bytes required"
 
         self._arg_vars = [output_var]
         self._mem = leak_ast
