@@ -262,7 +262,7 @@ class ColorGuard(object):
 
         if self.causes_leak():
             pov = self.attempt_pov()
-            if pov is not None and any(pov.test_binary(times=10, enable_randomness=True, timeout=30)):
+            if pov is not None:
                 return pov
             else:
                 l.warning("Colorguard leak exploitation failed")
@@ -271,8 +271,11 @@ class ColorGuard(object):
 
     @staticmethod
     def _challenge_response_exists(exploit):
+        """
+        Since one success may actually occur, let's test for two successes
+        """
 
-        return not any(exploit.test_binary(times=10, enable_randomness=True, timeout=30))
+        return not (exploit.test_binary(times=10, enable_randomness=True, timeout=30).count(True) > 1)
 
     def _prep_challenge_response(self, format_infos=None):
 
