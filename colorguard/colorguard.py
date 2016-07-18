@@ -5,7 +5,7 @@ import claripy
 from itertools import groupby
 from operator import itemgetter
 from .harvester import Harvester
-from .pov import ColorguardExploit, ColorguardNaiveExploit
+from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit
 from rex.trace_additions import ChallRespInfo, ZenPlugin
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
@@ -86,7 +86,7 @@ class ColorGuard(object):
 
         return not self._no_concrete_difference
 
-    def _find_dumb_leaks(self):
+    def _find_dumb_leaks_raw(self):
 
         s1, m1 = self._concrete_leak_info()
 
@@ -96,12 +96,24 @@ class ColorGuard(object):
             if len(pchunk) == 4 and pchunk in m1:
                 potential_leaks.append(i)
 
-        return (potential_leaks, s1)
+        return potential_leaks
 
-    def attempt_dumb_pov(self):
+    def _find_dumb_leaks_hex(self):
 
-        p1, stdout = self._find_dumb_leaks()
-        p2, _ = self._find_dumb_leaks()
+        s1, m1 = self._concrete_leak_info()
+
+        potential_leaks = [ ]
+        for i in xrange(len(s1)):
+            pchunk = s1[i:i+8]
+            if len(pchunk) == 8 and pchunk in m1.encode('hex'):
+                potential_leaks.append(i)
+
+        return potential_leaks
+
+    def attempt_dumb_pov_raw(self):
+
+        p1 = self._find_dumb_leaks_raw()
+        p2 = self._find_dumb_leaks_raw()
 
         leaks = list(set(p1).intersection(set(p2)))
 
@@ -112,6 +124,31 @@ class ColorGuard(object):
             return ColorguardNaiveExploit(self.binary, self.payload, leaked_bytes[-1]+1, leaked_bytes)
         else:
             l.debug("No dumb leak found")
+
+    def attempt_dumb_pov_hex(self):
+
+        p1 = self._find_dumb_leaks_hex()
+        p2 = self._find_dumb_leaks_hex()
+
+        leaks = list(set(p1).intersection(set(p2)))
+
+        if leaks:
+            leaked_bytes = range(leaks[0], leaks[0]+8)
+            l.info("Found dumb hex leak which leaks bytes %s", leaked_bytes)
+
+            return ColorguardNaiveHexExploit(self.binary, self.payload, leaked_bytes[-1]+1, leaked_bytes)
+        else:
+            l.debug("No dumb hex leak found")
+
+    def attempt_dumb_pov(self):
+
+        pov = self.attempt_dumb_pov_raw()
+        if pov is not None:
+            return pov
+
+        pov = self.attempt_dumb_pov_hex()
+        if pov is not None:
+            return pov
 
     def causes_naive_leak(self):
 
@@ -134,12 +171,12 @@ class ColorGuard(object):
             except ValueError:
                 pass
 
-        return (potential_leaks, stdout)
+        return potential_leaks
 
     def attempt_naive_pov(self):
 
-        p1, stdout = self._find_naive_leaks()
-        p2, _ = self._find_naive_leaks()
+        p1 = self._find_naive_leaks()
+        p2 = self._find_naive_leaks()
 
         leaked = dict()
         for si in p1:

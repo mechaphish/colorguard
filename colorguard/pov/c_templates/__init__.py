@@ -1,2 +1,3 @@
 from .naive_c_template import naive_c_template
+from .naive_hex_c_template import naive_hex_c_template
 from .colorguard_c_template import colorguard_c_template
