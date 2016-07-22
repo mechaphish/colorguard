@@ -20,7 +20,7 @@ def test_simple_chall_resp():
 def test_fast_avoid_solves():
     import tracer
     tracer.tracer.l.setLevel("DEBUG")
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/chall_resp_leak2"), '!^>u')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/chall_resp_leak2"), 'Zw\xd4V')
 
     nose.tools.assert_true(cg.causes_leak())
     pov = cg.attempt_pov()
