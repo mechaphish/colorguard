@@ -10,7 +10,7 @@ logging.getLogger("colorguard").setLevel("DEBUG")
 logging.getLogger("povsim").setLevel("DEBUG")
 
 def test_simple_chall_resp():
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/CUSTM_00022"), '\xf0EY\xcaAAA')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/CUSTM_00022"), '\xa0\x9d\x9a\x35AA')
 
     nose.tools.assert_true(cg.causes_leak())
     pov = cg.attempt_pov()
