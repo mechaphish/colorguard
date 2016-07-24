@@ -83,5 +83,5 @@ class Harvester(object):
         for _, g in groupby(enumerate(leaked_bytes), lambda (i, x): i-x):
             consec_bytes.append(map(itemgetter(1), g))
 
-        ordered_bytes = sorted(consec_bytes, key=len)
+        ordered_bytes = sorted(consec_bytes, key=lambda x: -len(x))
         return ordered_bytes[0] if len(ordered_bytes) > 0 else [ ]
