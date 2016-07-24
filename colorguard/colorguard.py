@@ -7,6 +7,7 @@ from operator import itemgetter
 from .harvester import Harvester
 from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit
 from rex.trace_additions import ChallRespInfo, ZenPlugin
+from rex.exploit.cgc import CGCExploit
 from simuvex import s_options as so
 from simuvex.plugins.symbolic_memory import SimSymbolicMemory
 from simuvex.storage import SimFile
@@ -239,18 +240,7 @@ class ColorGuard(object):
         # this solves a problem with CROMU_00070, where the floating point
         # operations have to be done concretely and constrain the flagpage
         # to being a single value
-        zen_cache_keys = set(x.cache_key for x in st.get_plugin("zen_plugin").zen_constraints)
-        new_cons = [ ]
-        for con in st.se.constraints:
-            if con.cache_key in zen_cache_keys or not all(v.startswith("cgc-flag") for v in con.variables):
-                new_cons.append(con)
-
-        st.release_plugin('solver_engine')
-        st.add_constraints(*new_cons)
-        st.downsize()
-
-        st.se.simplify()
-        st.se._solver.result = None
+        CGCExploit.filter_uncontrolled_constraints(st)
 
         simplified = st.se.simplify(self.leak_ast)
 
