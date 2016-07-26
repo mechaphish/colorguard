@@ -1,11 +1,12 @@
 import os
+import struct
 import tracer
 import random
 import claripy
 from itertools import groupby
 from operator import itemgetter
 from .harvester import Harvester
-from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit
+from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit, ColorguardNaiveAtoiExploit
 from rex.trace_additions import ChallRespInfo, ZenPlugin
 from rex.exploit.cgc import CGCExploit
 from simuvex import s_options as so
@@ -111,6 +112,23 @@ class ColorGuard(object):
 
         return potential_leaks
 
+    def _find_dumb_leaks_atoi(self):
+
+        s1, m1 = self._concrete_leak_info()
+
+        potential_leaks = []
+        for i in xrange(len(m1)):
+            pchunk = m1[i:i+4]
+            if len(pchunk) != 4:
+                continue
+            val = struct.unpack("<I", pchunk)[0]
+            if str(val) in s1:
+                potential_leaks.append(s1.find(str(val)))
+            val2 = -((1 << 32) - val)
+            if str(val2) in s1:
+                potential_leaks.append(s1.find(str(val2)))
+        return potential_leaks
+
     def attempt_dumb_pov_raw(self):
 
         p1 = self._find_dumb_leaks_raw()
@@ -141,6 +159,20 @@ class ColorGuard(object):
         else:
             l.debug("No dumb hex leak found")
 
+    def attempt_dumb_pov_atoi(self):
+        p1 = self._find_dumb_leaks_atoi()
+        p2 = self._find_dumb_leaks_atoi()
+
+        leaks = list(set(p1).intersection(set(p2)))
+
+        if leaks:
+            leak_start = leaks[0]
+            l.info("Found dumb atoi leak which leaks at byte %s", leak_start)
+
+            return ColorguardNaiveAtoiExploit(self.binary, self.payload, leak_start)
+        else:
+            l.debug("No dumb leak found")
+
     def attempt_dumb_pov(self):
 
         pov = self.attempt_dumb_pov_raw()
@@ -148,6 +180,10 @@ class ColorGuard(object):
             return pov
 
         pov = self.attempt_dumb_pov_hex()
+        if pov is not None:
+            return pov
+
+        pov = self.attempt_dumb_pov_atoi()
         if pov is not None:
             return pov
 

@@ -1,3 +1,4 @@
 from .colorguard_pov import ColorguardExploit
 from .colorguard_naive_pov import ColorguardNaiveExploit
 from .colorguard_naive_hex_pov import ColorguardNaiveHexExploit
+from .colorguard_naive_atoi_pov import ColorguardNaiveAtoiExploit

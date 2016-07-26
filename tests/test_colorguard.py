@@ -171,6 +171,17 @@ def test_hex_leaking():
     pov = cg.attempt_exploit()
     nose.tools.assert_true(pov.test_binary())
 
+def test_atoi_leaking():
+    """
+    Test the ability to exploit a dumb leak of hex encoded flag data.
+    """
+
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/atoi_leak"), "foobar")
+
+    nose.tools.assert_true(cg.causes_dumb_leak())
+    pov = cg.attempt_exploit()
+    nose.tools.assert_true(pov.test_binary())
+
 def run_all():
     functions = globals()
     all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
