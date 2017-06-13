@@ -9,6 +9,6 @@ setup(
             'rex',
             'povsim',
             'tracer',
-            'simuvex'
+            'angr'
       ],
 )

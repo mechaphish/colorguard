@@ -9,9 +9,9 @@ from .harvester import Harvester
 from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit, ColorguardNaiveAtoiExploit
 from rex.trace_additions import ChallRespInfo, ZenPlugin
 from rex.exploit.cgc import CGCExploit
-from simuvex import s_options as so
-from simuvex.plugins.symbolic_memory import SimSymbolicMemory
-from simuvex.storage import SimFile
+from angr import sim_options as so
+from angr.state_plugins.symbolic_memory import SimSymbolicMemory
+from angr.storage import SimFile
 
 import logging
 
