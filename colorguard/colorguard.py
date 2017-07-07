@@ -43,13 +43,13 @@ class ColorGuard(object):
         self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options)
         ZenPlugin.prep_tracer(self._tracer)
 
-        e_path = self._tracer.path_group.active[0]
+        e_path = self._tracer.simgr.active[0]
 
         backing = SimSymbolicMemory(memory_id='file_colorguard')
-        backing.set_state(e_path.state)
-        backing.store(0, e_path.state.se.BVV(payload))
+        backing.set_state(e_path)
+        backing.store(0, e_path.se.BVV(payload))
 
-        e_path.state.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(payload))
+        e_path.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(payload))
 
         # will be overwritten by _concrete_difference if the input was filtered
         # this attributed is used exclusively for testing at the moment
@@ -247,7 +247,7 @@ class ColorGuard(object):
 
         self._leak_path, _ = self._tracer.run()
 
-        stdout = self._leak_path.state.posix.files[1]
+        stdout = self._leak_path.posix.files[1]
         tmp_pos = stdout.read_pos
         stdout.pos = 0
 
@@ -264,7 +264,7 @@ class ColorGuard(object):
 
         assert self.leak_ast is not None, "must run causes_leak first or input must cause a leak"
 
-        st = self._leak_path.state
+        st = self._leak_path
 
         # switch to a composite solver
         self._tracer.remove_preconstraints(self._leak_path, simplify=False)
