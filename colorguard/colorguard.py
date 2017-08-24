@@ -1,6 +1,6 @@
 import os
 import struct
-import tracer
+import angr
 import random
 import claripy
 from itertools import groupby
@@ -40,7 +40,8 @@ class ColorGuard(object):
         self._leak_path = None
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
-        self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options)
+        self._p = angr.Project(binary)
+        self._tracer = self._p.analyses.Tracer(payload, preconstrain_input=False, remove_options=remove_options)
         ZenPlugin.prep_tracer(self._tracer)
 
         e_path = self._tracer.simgr.active[0]
@@ -62,7 +63,7 @@ class ColorGuard(object):
         if seed is None:
             seed = random.randint(0, 2**32)
 
-        r1 = tracer.Runner(self.binary,
+        r1 = angr.analyses.tracer.Runner(self.binary,
                 input=self.payload,
                 record_magic=True,
                 record_stdout=True,
@@ -345,7 +346,7 @@ class ColorGuard(object):
         # need to re-trace the binary with stdin symbolic
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
-        self._tracer = tracer.Tracer(self.binary, self.payload, remove_options=remove_options)
+        self._tracer = self._p.analyses.Tracer(self.payload, remove_options=remove_options)
         ChallRespInfo.prep_tracer(self._tracer, format_infos)
 
         assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
