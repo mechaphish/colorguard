@@ -3,6 +3,7 @@ import struct
 import tracer
 import random
 import claripy
+import angr
 from itertools import groupby
 from operator import itemgetter
 from .harvester import Harvester
@@ -40,16 +41,27 @@ class ColorGuard(object):
         self._leak_path = None
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
-        self._tracer = tracer.Tracer(binary, payload, preconstrain_input=False, remove_options=remove_options)
-        ZenPlugin.prep_tracer(self._tracer)
+        self._runner = tracer.QEMURunner(binary=binary, input=payload)
 
-        e_path = self._tracer.simgr.active[0]
+        p = angr.misc.tracer.make_tracer_project(binary=binary)
+        s = p.factory.tracer_state(input_content=payload,
+                                   magic_content=self._runner.magic,
+                                   preconstrain_input=False,
+                                   remove_options=remove_options)
+        self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
+        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace, crash_mode=self._runner.crash_mode)
+        self._simgr.use_technique(c)
+        self._simgr.use_technique(t)
+        self._simgr.use_technique(angr.exploration_techniques.Oppologist())
+
+        ZenPlugin.prep_tracer(s)
 
         backing = SimSymbolicMemory(memory_id='file_colorguard')
-        backing.set_state(e_path)
-        backing.store(0, e_path.se.BVV(payload))
+        backing.set_state(s)
+        backing.store(0, s.se.BVV(payload))
 
-        e_path.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(payload))
+        s.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(payload))
 
         # will be overwritten by _concrete_difference if the input was filtered
         # this attributed is used exclusively for testing at the moment
@@ -62,11 +74,7 @@ class ColorGuard(object):
         if seed is None:
             seed = random.randint(0, 2**32)
 
-        r1 = tracer.Runner(self.binary,
-                input=self.payload,
-                record_magic=True,
-                record_stdout=True,
-                seed=seed)
+        r1 = tracer.QEMURunner(self.binary, input=self.payload, record_magic=True, record_stdout=True, seed=seed)
 
         return (r1.stdout, r1.magic)
 
@@ -245,7 +253,9 @@ class ColorGuard(object):
         if not self.causes_naive_leak():
             return False
 
-        self._leak_path, _ = self._tracer.run()
+        self._simgr.run()
+
+        self._leak_path = self._simgr.traced[0]
 
         stdout = self._leak_path.posix.files[1]
         tmp_pos = stdout.read_pos
@@ -267,10 +277,10 @@ class ColorGuard(object):
         st = self._leak_path
 
         # switch to a composite solver
-        self._tracer.remove_preconstraints(self._leak_path, simplify=False)
+        st.preconstrainer.remove_preconstraints(simplify=False)
 
         # get the flag var
-        flag_bytes = self._tracer.cgc_flag_bytes
+        flag_bytes = st.cgc.flag_bytes
 
         # remove constraints from the state which involve only the flagpage
         # this solves a problem with CROMU_00070, where the floating point
@@ -345,8 +355,21 @@ class ColorGuard(object):
         # need to re-trace the binary with stdin symbolic
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
-        self._tracer = tracer.Tracer(self.binary, self.payload, remove_options=remove_options)
-        ChallRespInfo.prep_tracer(self._tracer, format_infos)
+
+        p = angr.misc.tracer.make_tracer_project(binary=self.binary)
+        s = p.factory.tracer_state(input_content=self.payload,
+                                   magic_content=self._runner.magic,
+                                   remove_options=remove_options)
+        self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
+        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace, crash_mode=self._runner.crash_mode)
+        self._simgr.use_technique(c)
+        self._simgr.use_technique(t)
+        self._simgr.use_technique(angr.exploration_techniques.Oppologist())
+
+        ZenPlugin.prep_tracer(s)
+
+        ChallRespInfo.prep_tracer(s, format_infos)
 
         assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
 
