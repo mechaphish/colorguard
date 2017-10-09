@@ -50,7 +50,9 @@ class ColorGuard(object):
                                    remove_options=remove_options)
         self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
-        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace, crash_mode=self._runner.crash_mode)
+        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace,
+                                                     crash_mode=self._runner.crash_mode,
+                                                     crash_addr=self._runner.crash_addr)
         self._simgr.use_technique(c)
         self._simgr.use_technique(t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
@@ -362,7 +364,9 @@ class ColorGuard(object):
                                    remove_options=remove_options)
         self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
-        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace, crash_mode=self._runner.crash_mode)
+        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace,
+                                                     crash_mode=self._runner.crash_mode,
+                                                     crash_addr=self._runner.crash_addr)
         self._simgr.use_technique(c)
         self._simgr.use_technique(t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
