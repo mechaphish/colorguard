@@ -8,7 +8,7 @@ from itertools import groupby
 from operator import itemgetter
 from .harvester import Harvester
 from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit, ColorguardNaiveAtoiExploit
-from rex.trace_additions import ChallRespInfo, ZenPlugin
+from angr.state_plugins.trace_additions import ChallRespInfo, ZenPlugin
 from rex.exploit.cgc import CGCExploit
 from angr import sim_options as so
 from angr.state_plugins.symbolic_memory import SimSymbolicMemory
