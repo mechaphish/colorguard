@@ -43,7 +43,8 @@ class ColorGuard(object):
         remove_options = {so.SUPPORT_FLOATING_POINT}
         self._runner = tracer.QEMURunner(binary=binary, input=payload)
 
-        p = angr.misc.tracer.make_tracer_project(binary=binary)
+        p = angr.Project(binary)
+        p._simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
         s = p.factory.tracer_state(input_content=payload,
                                    magic_content=self._runner.magic,
                                    preconstrain_input=False,
@@ -365,7 +366,8 @@ class ColorGuard(object):
 
         remove_options = {so.SUPPORT_FLOATING_POINT}
 
-        p = angr.misc.tracer.make_tracer_project(binary=self.binary)
+        p = angr.Project(self.binary)
+        p._simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
         s = p.factory.tracer_state(input_content=self.payload,
                                    magic_content=self._runner.magic,
                                    remove_options=remove_options)
