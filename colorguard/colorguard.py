@@ -45,7 +45,7 @@ class ColorGuard(object):
 
         p = angr.Project(binary)
         if p.loader.main_object.os == 'cgc':
-            p._simos.syscall_library.procedures.update(angr.TRACER_CGC_SYSCALLS)
+            p._simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
         s = p.factory.tracer_state(input_content=payload,
                                    magic_content=self._runner.magic,
                                    preconstrain_input=False,
@@ -369,7 +369,7 @@ class ColorGuard(object):
 
         p = angr.Project(self.binary)
         if p.loader.main_object.os == 'cgc':
-            p._simos.syscall_library.procedures.update(angr.TRACER_CGC_SYSCALLS)
+            p._simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
         s = p.factory.tracer_state(input_content=self.payload,
                                    magic_content=self._runner.magic,
                                    remove_options=remove_options)
