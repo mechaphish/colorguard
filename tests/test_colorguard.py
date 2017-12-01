@@ -104,25 +104,23 @@ def test_double_leak():
     nose.tools.assert_not_equal(pov, None)
     nose.tools.assert_true(pov.test_binary())
 
-#def test_caching():
-#    """
-#    Test the at-receive local caching.
-#    """
-#
-#    payload = "320a310a0100000005000000330a330a340a".decode('hex')
-#    cg1 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
-#
-#    # of course run the thing and makes sure it works
-#    nose.tools.assert_true(cg1.causes_leak())
-#
-#    cg2 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
-#
-#    nose.tools.assert_true(cg2._tracer._loaded_from_cache)
-#
-#    # and insure the cache-loaded version still works
-#    nose.tools.assert_true(cg2.causes_leak())
-#    pov = cg2.attempt_pov()
-#    nose.tools.assert_true(pov.test_binary())
+def test_caching():
+    """
+    Test the at-receive local caching.
+    """
+
+    payload = "320a310a0100000005000000330a330a340a".decode('hex')
+    cg1 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
+
+    # of course run the thing and makes sure it works
+    nose.tools.assert_true(cg1.causes_leak())
+
+    cg2 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
+
+    # and insure the cache-loaded version still works
+    nose.tools.assert_true(cg2.causes_leak())
+    pov = cg2.attempt_pov()
+    nose.tools.assert_true(pov.test_binary())
 
 def test_leak_no_exit():
     """
