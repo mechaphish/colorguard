@@ -44,13 +44,11 @@ class ColorGuard(object):
         self._runner = tracer.QEMURunner(binary=binary, input=payload)
 
         p = angr.Project(binary)
-        p._simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
+        p.simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
         s = p.factory.tracer_state(input_content=payload,
                                    magic_content=self._runner.magic,
                                    preconstrain_input=False,
                                    remove_options=remove_options)
-
-        ZenPlugin.prep_tracer(s)
 
         self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
@@ -60,6 +58,10 @@ class ColorGuard(object):
         self._simgr.use_technique(c)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
+
+        s = self._simgr.one_active
+
+        ZenPlugin.prep_tracer(s)
 
         backing = SimSymbolicMemory(memory_id='file_colorguard')
         backing.set_state(s)
@@ -372,10 +374,6 @@ class ColorGuard(object):
                                    magic_content=self._runner.magic,
                                    remove_options=remove_options)
 
-        ZenPlugin.prep_tracer(s)
-
-        ChallRespInfo.prep_tracer(s, format_infos)
-
         self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
         c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace,
@@ -384,6 +382,12 @@ class ColorGuard(object):
         self._simgr.use_technique(c)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
+
+        s = self._simgr.one_active
+
+        ZenPlugin.prep_tracer(s)
+
+        ChallRespInfo.prep_tracer(s, format_infos)
 
         assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
 
