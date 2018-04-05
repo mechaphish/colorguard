@@ -8,7 +8,6 @@ bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..
 
 logging.getLogger("colorguard").setLevel("DEBUG")
 logging.getLogger("povsim").setLevel("DEBUG")
-logging.getLogger("angr.state_plugins.preconstrainer").setLevel("DEBUG")
 logging.getLogger("angr.exploration_techniques.tracer").setLevel("DEBUG")
 logging.getLogger("angr.exploration_techniques.crash_monitor").setLevel("DEBUG")
 
@@ -21,7 +20,6 @@ def test_simple_chall_resp():
 
 
 def test_fast_avoid_solves():
-    logging.getLogger("angr.state_plugins.preconstrainer").setLevel("DEBUG")
     logging.getLogger("angr.simos").setLevel("DEBUG")
     logging.getLogger("angr.exploration_techniques.tracer").setLevel("DEBUG")
     logging.getLogger("angr.exploration_techniques.crash_monitor").setLevel("DEBUG")

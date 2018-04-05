@@ -2,21 +2,25 @@ import os
 import struct
 import tracer
 import random
-import claripy
-import angr
+import logging
 from itertools import groupby
 from operator import itemgetter
+
+import claripy
+import angr
+
+from angr.state_plugins.trace_additions import ChallRespInfo, ZenPlugin
+from angr.state_plugins.preconstrainer import SimStatePreconstrainer
+from angr.state_plugins.posix import SimSystemPosix
+from angr.storage.file import SimFileStream
+
+from rex.exploit.cgc import CGCExploit
+
 from .harvester import Harvester
 from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit, ColorguardNaiveAtoiExploit
-from angr.state_plugins.trace_additions import ChallRespInfo, ZenPlugin
-from rex.exploit.cgc import CGCExploit
-from angr import sim_options as so
-from angr.state_plugins.symbolic_memory import SimSymbolicMemory
-from angr.storage import SimFile
-
-import logging
 
 l = logging.getLogger("colorguard.ColorGuard")
+
 
 class ColorGuard(object):
     """
@@ -24,11 +28,10 @@ class ColorGuard(object):
     Most logic is offloaded to the tracer.
     """
 
-    def __init__(self, binary, payload, format_infos=None):
+    def __init__(self, binary, payload):
         """
         :param binary: path to the binary which is suspect of leaking
         :param payload: concrete input string to feed to the binary
-        :param format_infos: a list of atoi FormatInfo objects that should be used when analyzing the crash
         """
 
         self.binary = binary
@@ -40,34 +43,38 @@ class ColorGuard(object):
         # will be set by causes_leak
         self._leak_path = None
 
-        remove_options = {so.SUPPORT_FLOATING_POINT}
         self._runner = tracer.QEMURunner(binary=binary, input=payload)
 
-        p = angr.Project(binary)
-        p.simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
-        s = p.factory.tracer_state(input_content=payload,
-                                   magic_content=self._runner.magic,
-                                   preconstrain_input=False,
-                                   remove_options=remove_options)
+        # load the binary
+        self.project = angr.Project(binary)
+        self.project.simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
 
-        self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
-        self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
-        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace,
-                                                     crash_mode=self._runner.crash_mode,
-                                                     crash_addr=self._runner.crash_addr)
-        self._simgr.use_technique(c)
+        # set up the state for analysis
+        remove_options = {angr.options.SUPPORT_FLOATING_POINT}
+        add_options = angr.options.unicorn | {
+                angr.options.CGC_NO_SYMBOLIC_RECEIVE_LENGTH,
+                angr.options.UNICORN_THRESHOLD_CONCRETIZATION,
+                angr.options.REPLACEMENT_SOLVER }
+        state = self.project.factory.full_init_state(remove_options=remove_options, add_options=add_options)
+
+        # Make our own special posix
+        state.register_plugin('posix', SimSystemPosix(
+            stdin=SimFileStream('stdin', content=payload),
+            stdout=SimFileStream('stdout'),
+            stderr=SimFileStream('stderr')))
+
+        # Create the preconstrainer plugin
+        state.register_plugin('preconstrainer', SimStatePreconstrainer())
+        state.preconstrainer.preconstrain_flag_page(self._runner.magic)
+
+        # Set up zen
+        ZenPlugin.prep_tracer(state)
+
+        # Make the simulation manager
+        self._simgr = self.project.factory.simgr(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace, resiliency=False)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
-
-        s = self._simgr.one_active
-
-        ZenPlugin.prep_tracer(s)
-
-        backing = SimSymbolicMemory(memory_id='file_colorguard')
-        backing.set_state(s)
-        backing.store(0, s.se.BVV(payload))
-
-        s.posix.files[0] = SimFile('/dev/stdin', 'r', content=backing, size=len(payload))
 
         # will be overwritten by _concrete_difference if the input was filtered
         # this attributed is used exclusively for testing at the moment
@@ -269,11 +276,8 @@ class ColorGuard(object):
             l.error("Something went wrong, tracing didn't terminate with traced or crashed.")
             return False
 
-        stdout = self._leak_path.posix.files[1]
-        tmp_pos = stdout.read_pos
-        stdout.pos = 0
-
-        output = stdout.read_from(tmp_pos)
+        stdout = self._leak_path.posix.stdout
+        output = stdout.load(0, stdout.pos)
 
         for var in output.variables:
             if var.startswith("cgc-flag"):
@@ -359,35 +363,44 @@ class ColorGuard(object):
         """
         Since one success may actually occur, let's test for two successes
         """
-
         return not (exploit.test_binary(times=10, enable_randomness=True, timeout=30).count(True) > 1)
 
     def _prep_challenge_response(self, format_infos=None):
+        """
+        Set up the internal tracer for challenge-response analysis
+
+        :param format_infos: a list of atoi FormatInfo objects that should be used when analyzing the crash
+        """
 
         # need to re-trace the binary with stdin symbolic
 
-        remove_options = {so.SUPPORT_FLOATING_POINT}
+        remove_options = {angr.options.SUPPORT_FLOATING_POINT}
+        add_options = angr.options.unicorn | {
+                angr.options.CGC_NO_SYMBOLIC_RECEIVE_LENGTH,
+                angr.options.UNICORN_THRESHOLD_CONCRETIZATION,
+                angr.options.REPLACEMENT_SOLVER }
 
-        p = angr.Project(self.binary)
-        p._simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
-        s = p.factory.tracer_state(input_content=self.payload,
-                                   magic_content=self._runner.magic,
-                                   remove_options=remove_options)
+        state = self.project.factory.full_init_state(add_options=add_options, remove_options=remove_options)
 
-        self._simgr = p.factory.simgr(s, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
-        self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace)
-        c = angr.exploration_techniques.CrashMonitor(trace=self._runner.trace,
-                                                     crash_mode=self._runner.crash_mode,
-                                                     crash_addr=self._runner.crash_addr)
-        self._simgr.use_technique(c)
+        # Make our own special posix
+        state.register_plugin('posix', SimSystemPosix(
+            stdin=SimFileStream('stdin', ident='aeg_stdin'), # we do tests against the name of the variable...
+            stdout=SimFileStream('stdout'),
+            stderr=SimFileStream('stderr')))
+
+        # Create the preconstrainer plugin
+        state.register_plugin('preconstrainer', SimStatePreconstrainer())
+        state.preconstrainer.preconstrain_flag_page(self._runner.magic)
+        state.preconstrainer.preconstrain_file(self.payload, state.posix.stdin)
+
+        # Set up zen
+        ZenPlugin.prep_tracer(state)
+        ChallRespInfo.prep_tracer(state, format_infos)
+
+        self._simgr = self.project.factory.simgr(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace, resiliency=False)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
-
-        s = self._simgr.one_active
-
-        ZenPlugin.prep_tracer(s)
-
-        ChallRespInfo.prep_tracer(s, format_infos)
 
         assert self.causes_leak(), "challenge did not cause leak when trying to recover challenge-response"
 

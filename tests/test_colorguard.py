@@ -6,8 +6,6 @@ import os
 
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
-#logging.getLogger("tracer").setLevel("DEBUG")
-#logging.getLogger("simuvex.plugins.unicorn").setLevel("DEBUG")
 logging.getLogger("colorguard").setLevel("DEBUG")
 logging.getLogger("povsim").setLevel("DEBUG")
 
