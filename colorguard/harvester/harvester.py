@@ -4,7 +4,7 @@ from operator import itemgetter
 
 import logging
 l = logging.getLogger("colorguard.harvester")
-l.setLevel("DEBUG")
+#l.setLevel("DEBUG")
 
 
 class Harvester(object):

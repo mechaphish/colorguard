@@ -6,9 +6,6 @@ import os
 
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
-logging.getLogger("colorguard").setLevel("DEBUG")
-logging.getLogger("povsim").setLevel("DEBUG")
-
 def test_simple_leak1():
     """
     Test detection of one of the simplest possible leaks.
@@ -187,6 +184,9 @@ def run_all():
             all_functions[f]()
 
 if __name__ == "__main__":
+    logging.getLogger("colorguard").setLevel("DEBUG")
+    logging.getLogger("povsim").setLevel("DEBUG")
+
     import sys
     if len(sys.argv) > 1:
         globals()['test_' + sys.argv[1]]()

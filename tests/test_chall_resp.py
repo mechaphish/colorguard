@@ -6,11 +6,6 @@ import os
 
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
-logging.getLogger("colorguard").setLevel("DEBUG")
-logging.getLogger("povsim").setLevel("DEBUG")
-logging.getLogger("angr.exploration_techniques.tracer").setLevel("DEBUG")
-logging.getLogger("angr.exploration_techniques.crash_monitor").setLevel("DEBUG")
-
 def test_simple_chall_resp():
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/CUSTM_00022"), '\xa0\x9d\x9a\x35AA')
 
@@ -20,9 +15,6 @@ def test_simple_chall_resp():
 
 
 def test_fast_avoid_solves():
-    logging.getLogger("angr.simos").setLevel("DEBUG")
-    logging.getLogger("angr.exploration_techniques.tracer").setLevel("DEBUG")
-    logging.getLogger("angr.exploration_techniques.crash_monitor").setLevel("DEBUG")
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/chall_resp_leak2"), 'Zw\xd4V')
 
     nose.tools.assert_true(cg.causes_leak())
@@ -37,6 +29,11 @@ def run_all():
             all_functions[f]()
 
 if __name__ == "__main__":
+    logging.getLogger("colorguard").setLevel("DEBUG")
+    logging.getLogger("povsim").setLevel("DEBUG")
+    logging.getLogger("angr.exploration_techniques.tracer").setLevel("DEBUG")
+    logging.getLogger("angr.exploration_techniques.crash_monitor").setLevel("DEBUG")
+
     import sys
     if len(sys.argv) > 1:
         globals()['test_' + sys.argv[1]]()

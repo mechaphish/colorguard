@@ -6,9 +6,6 @@ import os
 
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
-logging.getLogger("colorguard").setLevel("DEBUG")
-logging.getLogger("povsim").setLevel("DEBUG")
-
 def test_cromu_00070_caching():
     """
     Test exploitation of CROMU_00070 given an input which causes a leak. Then test that we can do it again restoring
@@ -31,6 +28,9 @@ def run_all():
             all_functions[f]()
 
 if __name__ == "__main__":
+    logging.getLogger("colorguard").setLevel("DEBUG")
+    logging.getLogger("povsim").setLevel("DEBUG")
+
     import sys
     if len(sys.argv) > 1:
         globals()['test_' + sys.argv[1]]()
