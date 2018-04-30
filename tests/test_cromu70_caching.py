@@ -1,4 +1,5 @@
 import nose
+from nose.plugins.attrib import attr
 import logging
 import colorguard
 
@@ -6,11 +7,10 @@ import os
 
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
+@attr(speed='slow')
 def test_cromu_00070_caching():
-    """
-    Test exploitation of CROMU_00070 given an input which causes a leak. Then test that we can do it again restoring
-    from the cache.
-    """
+    # Test exploitation of CROMU_00070 given an input which causes a leak. Then test that we can do it again restoring
+    # from the cache.
 
     for _ in range(2):
         payload = "06000006020a00000000000000000000000c030c00000100e1f505000000000000eb".decode('hex')
