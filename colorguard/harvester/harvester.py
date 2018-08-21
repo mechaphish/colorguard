@@ -37,7 +37,7 @@ class Harvester(object):
 
         # collect bytes
         ast_bytes = [ ]
-        for i in range(self.ast.size() / 8, 0, -1):
+        for i in range(self.ast.size() // 8, 0, -1):
             ast_bytes.append(self.ast[i * 8 - 1: (i * 8) - 8])
 
         # populate receives and minimized ast
@@ -69,7 +69,7 @@ class Harvester(object):
         # extra work here because we need to be confident about the bytes
 
         ss = self.state.copy()
-        ss.add_constraints(self.minimized_ast == ss.se.BVV(ss.se.eval(self.minimized_ast, cast_to=str)))
+        ss.add_constraints(self.minimized_ast == ss.se.BVV(ss.se.eval(self.minimized_ast, cast_to=bytes)))
 
         leaked_bytes = [ ]
         for byte in self.possibly_leaked_bytes:
@@ -80,8 +80,8 @@ class Harvester(object):
 
         consec_bytes = [ ]
         # find consecutive leaked bytes
-        for _, g in groupby(enumerate(leaked_bytes), lambda (i, x): i-x):
-            consec_bytes.append(map(itemgetter(1), g))
+        for _, g in groupby(enumerate(leaked_bytes), lambda ix: ix[0]-ix[1]):
+            consec_bytes.append(list(map(itemgetter(1), g)))
 
         ordered_bytes = sorted(consec_bytes, key=lambda x: -len(x))
         return ordered_bytes[0] if len(ordered_bytes) > 0 else [ ]
