@@ -11,7 +11,7 @@ def test_simple_leak1():
     Test detection of one of the simplest possible leaks.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak1'), 'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak1'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -22,7 +22,7 @@ def test_simple_leak2():
     Test detection of a leak where multiple arithmetic operations are performed on flag page data.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak2'), 'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak2'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -33,7 +33,7 @@ def test_simple_leak3():
     Test detection of a leak where bytes leaked through different calls to transmit.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak3'), 'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak3'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -44,7 +44,7 @@ def test_simple_leak4():
     Test detection of a leak where bytes leaked through different calls to transmit and operations are done to those bytes.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak4'), 'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak4'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -55,7 +55,7 @@ def test_simple_leak5():
     Test detection of a leak where individual bits of the flag are leaked out
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak5'), '\x00' * 0x20)
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak5'), b'\x00' * 0x20)
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -66,7 +66,7 @@ def test_choose_leak():
     Test colorguard choosing the correct flag page bytes must be reversed.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/choose_leak'), 'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/choose_leak'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -78,7 +78,7 @@ def test_big_leak():
     This used to cause a bug because of limits placed on how much data could be loaded from a SymbolicMemoryRegion.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/big_leak'), 'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/big_leak'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -92,7 +92,7 @@ def test_double_leak():
     is reversable.
     """
 
-    payload = "320a310a0100000005000000330a330a340a".decode('hex')
+    payload = bytes.fromhex("320a310a0100000005000000330a330a340a")
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     pov = cg.attempt_exploit()
@@ -104,7 +104,7 @@ def test_caching():
     Test the at-receive local caching.
     """
 
-    payload = "320a310a0100000005000000330a330a340a".decode('hex')
+    payload = bytes.fromhex("320a310a0100000005000000330a330a340a")
     cg1 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     # of course run the thing and makes sure it works
@@ -124,7 +124,7 @@ def test_leak_no_exit():
 
     # this payload cause a leak but the exit condition in QEMU does not represent the
     # the PoV's running environment accurately
-    payload = "320a330a".decode('hex')
+    payload = bytes.fromhex("320a330a")
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     pov = cg.attempt_exploit()
@@ -136,7 +136,7 @@ def test_concrete_difference_filtering():
     Test the ability to filter inputs which cause no output difference when ran concretely.
     """
 
-    payload = "313131313131313131313131313131310a".decode('hex')
+    payload = bytes.fromhex("313131313131313131313131313131310a")
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/CROMU_00070"), payload)
 
     nose.tools.assert_false(cg.causes_leak())
@@ -147,7 +147,7 @@ def test_dumb_leaking():
     Test the ability to quickly exploit really simple leaks.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/random_flag"), "foobar")
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/random_flag"), b"foobar")
 
     nose.tools.assert_true(cg.causes_dumb_leak())
     pov = cg.attempt_dumb_pov()
@@ -158,7 +158,7 @@ def test_hex_leaking():
     Test the ability to exploit a dumb leak of hex encoded flag data.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/hex_leak"), "foobar")
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/hex_leak"), b"foobar")
 
     nose.tools.assert_true(cg.causes_dumb_leak())
     pov = cg.attempt_exploit()
@@ -169,7 +169,7 @@ def test_atoi_leaking():
     Test the ability to exploit a dumb leak of hex encoded flag data.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/atoi_leak"), "foobar")
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/atoi_leak"), b"foobar")
 
     nose.tools.assert_true(cg.causes_dumb_leak())
     pov = cg.attempt_exploit()
@@ -177,10 +177,10 @@ def test_atoi_leaking():
 
 def run_all():
     functions = globals()
-    all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
+    all_functions = dict(filter((lambda kv: kv[0].startswith('test_')), functions.items()))
     for f in sorted(all_functions.keys()):
         if hasattr(all_functions[f], '__call__'):
-            print f
+            print(f)
             all_functions[f]()
 
 if __name__ == "__main__":

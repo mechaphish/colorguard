@@ -13,7 +13,7 @@ class NodeTree(object):
 
     @staticmethod
     def _to_byte_idx(idx):
-        return 4095 - idx / 8
+        return 4095 - idx // 8
 
     def _find_node(self, tree, node_cls):
 
@@ -72,11 +72,11 @@ class NodeTree(object):
             # TODO: but im too lazy to special case these at the moment
             if isinstance(op, BVVNode) or op._symbolic_sides() > 1:
                 # read and throw away
-                statements.append("blank_receive(0, {});".format(size / 8))
+                statements.append("blank_receive(0, {});".format(size // 8))
             else:
-                max_op_size = max(max_op_size, size / 8)
+                max_op_size = max(max_op_size, size // 8)
                 # find extract to determine which flag byte
-                statements.append("receive(0, {}, {}, NULL);\n".format('root', size / 8))
+                statements.append("receive(0, {}, {}, NULL);\n".format('root', size // 8))
 
                 enode = self._find_node(op, ExtractNode)
                 start_byte = NodeTree._to_byte_idx(enode.end_index)
@@ -93,7 +93,7 @@ class NodeTree(object):
                         self.created_vars.add(i)
                     # hack! this will assume that if the operation size is larger than leaked bytes
                     # the leaked bytes will be on the `right` of the leaked int
-                    statement += "flag_byte_%d = root[%d] & 0xff;" % (i, r_i + (size / 8) - (end_byte - start_byte))
+                    statement += "flag_byte_%d = root[%d] & 0xff;" % (i, r_i + (size // 8) - (end_byte - start_byte))
                     statements.append(statement)
 
         statements = ["\nchar root[%d];" % max_op_size, "int flag = 0;"] + statements
@@ -103,14 +103,14 @@ class NodeTree(object):
 
         # if it's an extract statement we already know it needs to have all the bytes
 
-        statements = ["\nchar root[%d];" % (self.root.size / 8), "int flag = 0;"]
-        statements.append("receive(0, {}, {}, NULL);".format('root', self.root.size / 8))
+        statements = ["\nchar root[%d];" % (self.root.size // 8), "int flag = 0;"]
+        statements.append("receive(0, {}, {}, NULL);".format('root', self.root.size // 8))
 
         statements.append(self.root.to_statement() + ";")
-        for i in range(self.root.size / 8):
+        for i in range(self.root.size // 8):
             statements.append("uint8_t flag_byte_%d = root[%d] & 0xff;" % (i, i))
 
-        for i in range(min(self.root.size / 8, 4)):
+        for i in range(min(self.root.size // 8, 4)):
             statements.append("flag |= flag_byte_%d << %d;" % (i, 24 - (i * 8)))
         return "\n".join(statements)
 
@@ -143,9 +143,9 @@ class NodeTree(object):
                 start_byte = NodeTree._to_byte_idx(node.end_index)
                 end_byte = NodeTree._to_byte_idx(node.start_index)
 
-                bs = range(start_byte, end_byte+1)
+                bs = list(range(start_byte, end_byte+1))
 
-                lbytes  += map(lambda y: (y, op), bs)
+                lbytes  += list(map(lambda y: (y, op), bs))
 
         return lbytes
 
@@ -157,7 +157,7 @@ class NodeTree(object):
         start_byte = NodeTree._to_byte_idx(self.root.end_index)
         end_byte = NodeTree._to_byte_idx(self.root.start_index)
 
-        return map(lambda y: (y, self.root), [start_byte] + range(start_byte + 1, end_byte + 1))
+        return list(map(lambda y: (y, self.root), [start_byte] + list(range(start_byte + 1, end_byte + 1))))
 
     def _concat_combine_bytes(self):
 
@@ -237,7 +237,7 @@ class BinOpNode(Node):
     def to_statement(self):
         a1_t = self.arg1.to_statement()
         a2_t = self.arg2.to_statement()
-        return "{1}({0}, {2}, {3})".format(a1_t, self.op_str, a2_t, self.size / 8)
+        return "{1}({0}, {2}, {3})".format(a1_t, self.op_str, a2_t, self.size // 8)
 
     def _symbolic_sides(self):
         return self.arg1._symbolic_sides() + self.arg2._symbolic_sides()
@@ -287,7 +287,7 @@ class ReverseNode(UnOp):
 
     def to_statement(self):
         a_t = self.arg.to_statement()
-        return "reverse({0}, {1})".format(a_t, self.size / 8)
+        return "reverse({0}, {1})".format(a_t, self.size // 8)
 
 class ConcatNode(Node):
 
@@ -296,7 +296,7 @@ class ConcatNode(Node):
         self.operands = operands
 
     def to_statement(self):
-        raise NotImplementedError, "this should not be called"
+        raise NotImplementedError("this should not be called")
 
     def _symbolic_sides(self):
         """symbolicness does not matter in this case"""
