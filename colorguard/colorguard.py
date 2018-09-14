@@ -71,7 +71,7 @@ class ColorGuard(object):
         ZenPlugin.prep_tracer(state)
 
         # Make the simulation manager
-        self._simgr = self.project.factory.simgr(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        self._simgr = self.project.factory.simulation_manager(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace, resiliency=False)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
@@ -397,7 +397,7 @@ class ColorGuard(object):
         ZenPlugin.prep_tracer(state)
         ChallRespInfo.prep_tracer(state, format_infos)
 
-        self._simgr = self.project.factory.simgr(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        self._simgr = self.project.factory.simulation_manager(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace, resiliency=False)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
