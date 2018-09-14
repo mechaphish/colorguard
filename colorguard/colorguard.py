@@ -304,7 +304,7 @@ class ColorGuard(object):
         # to being a single value
         CGCExploit.filter_uncontrolled_constraints(st)
 
-        simplified = st.se.simplify(self.leak_ast)
+        simplified = st.solver.simplify(self.leak_ast)
 
         harvester = Harvester(simplified, st.copy(), flag_bytes)
 
