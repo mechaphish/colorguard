@@ -61,7 +61,7 @@ class Harvester(object):
 
     def _confident_byte(self, ss, byte):
         l.debug("checking byte")
-        if len(ss.se.eval_upto(self.flag_bytes[byte], 2)) == 1:
+        if len(ss.solver.eval_upto(self.flag_bytes[byte], 2)) == 1:
             return True
         return False
 
@@ -69,7 +69,7 @@ class Harvester(object):
         # extra work here because we need to be confident about the bytes
 
         ss = self.state.copy()
-        ss.add_constraints(self.minimized_ast == ss.se.BVV(ss.se.eval(self.minimized_ast, cast_to=bytes)))
+        ss.add_constraints(self.minimized_ast == ss.solver.BVV(ss.solver.eval(self.minimized_ast, cast_to=bytes)))
 
         leaked_bytes = [ ]
         for byte in self.possibly_leaked_bytes:

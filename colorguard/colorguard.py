@@ -4,7 +4,7 @@ import tracer
 import random
 import logging
 from itertools import groupby
-from operator import itemgetter
+import binascii
 
 import claripy
 import angr
@@ -71,7 +71,7 @@ class ColorGuard(object):
         ZenPlugin.prep_tracer(state)
 
         # Make the simulation manager
-        self._simgr = self.project.factory.simgr(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        self._simgr = self.project.factory.simulation_manager(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace, resiliency=False)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())
@@ -89,7 +89,7 @@ class ColorGuard(object):
 
         r1 = tracer.QEMURunner(self.binary, input=self.payload, record_magic=True, record_stdout=True, seed=seed)
 
-        return (r1.stdout, r1.magic)
+        return r1.stdout, r1.magic
 
     def _concrete_difference(self):
         """
@@ -114,7 +114,7 @@ class ColorGuard(object):
         s1, m1 = self._concrete_leak_info()
 
         potential_leaks = [ ]
-        for i in xrange(len(s1)):
+        for i in range(len(s1)):
             pchunk = s1[i:i+4]
             if len(pchunk) == 4 and pchunk in m1:
                 potential_leaks.append(i)
@@ -126,9 +126,9 @@ class ColorGuard(object):
         s1, m1 = self._concrete_leak_info()
 
         potential_leaks = [ ]
-        for i in xrange(len(s1)):
+        for i in range(len(s1)):
             pchunk = s1[i:i+8]
-            if len(pchunk) == 8 and pchunk in m1.encode('hex'):
+            if len(pchunk) == 8 and pchunk in binascii.hexlify(m1):
                 potential_leaks.append(i)
 
         return potential_leaks
@@ -138,16 +138,16 @@ class ColorGuard(object):
         s1, m1 = self._concrete_leak_info()
 
         potential_leaks = []
-        for i in xrange(len(m1)):
+        for i in range(len(m1)):
             pchunk = m1[i:i+4]
             if len(pchunk) != 4:
                 continue
             val = struct.unpack("<I", pchunk)[0]
-            if str(val) in s1:
-                potential_leaks.append(s1.find(str(val)))
+            if str(val).encode() in s1:
+                potential_leaks.append(s1.find(str(val).encode()))
             val2 = -((1 << 32) - val)
-            if str(val2) in s1:
-                potential_leaks.append(s1.find(str(val2)))
+            if str(val2).encode() in s1:
+                potential_leaks.append(s1.find(str(val2).encode()))
         return potential_leaks
 
     def attempt_dumb_pov_raw(self):
@@ -158,7 +158,7 @@ class ColorGuard(object):
         leaks = list(set(p1).intersection(set(p2)))
 
         if leaks:
-            leaked_bytes = range(leaks[0], leaks[0]+4)
+            leaked_bytes = list(range(leaks[0], leaks[0]+4))
             l.info("Found dumb leak which leaks bytes %s", leaked_bytes)
 
             return ColorguardNaiveExploit(self.binary, self.payload, leaked_bytes[-1]+1, leaked_bytes)
@@ -173,7 +173,7 @@ class ColorGuard(object):
         leaks = list(set(p1).intersection(set(p2)))
 
         if leaks:
-            leaked_bytes = range(leaks[0], leaks[0]+8)
+            leaked_bytes = list(range(leaks[0], leaks[0]+8))
             l.info("Found dumb hex leak which leaks bytes %s", leaked_bytes)
 
             return ColorguardNaiveHexExploit(self.binary, self.payload, leaked_bytes[-1]+1, leaked_bytes)
@@ -246,10 +246,10 @@ class ColorGuard(object):
 
         # find four contiguous
         consecutive_groups = [ ]
-        for _, g in groupby(enumerate(sorted(leaked)), lambda (i,x):i-x):
-            consecutive_groups.append(map(itemgetter(1), g))
+        for _, g in groupby(enumerate(sorted(leaked)), lambda ix: ix[0]-ix[1]):
+            consecutive_groups.append([x[1] for x in g])
 
-        lgroups = filter(lambda x: len(x) >= 4, consecutive_groups)
+        lgroups = [x for x in consecutive_groups if len(x) >= 4]
 
         if len(lgroups):
             l.info("Found naive leak which leaks bytes %s", lgroups[0])
@@ -304,7 +304,7 @@ class ColorGuard(object):
         # to being a single value
         CGCExploit.filter_uncontrolled_constraints(st)
 
-        simplified = st.se.simplify(self.leak_ast)
+        simplified = st.solver.simplify(self.leak_ast)
 
         harvester = Harvester(simplified, st.copy(), flag_bytes)
 
@@ -397,7 +397,7 @@ class ColorGuard(object):
         ZenPlugin.prep_tracer(state)
         ChallRespInfo.prep_tracer(state, format_infos)
 
-        self._simgr = self.project.factory.simgr(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
+        self._simgr = self.project.factory.simulation_manager(state, save_unsat=True, hierarchy=False, save_unconstrained=self._runner.crash_mode)
         self._t = angr.exploration_techniques.Tracer(trace=self._runner.trace, resiliency=False)
         self._simgr.use_technique(self._t)
         self._simgr.use_technique(angr.exploration_techniques.Oppologist())

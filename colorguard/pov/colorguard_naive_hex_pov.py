@@ -47,7 +47,7 @@ class ColorguardNaiveHexExploit(CGCExploit):
 
         encoded_payload = ""
         for c in self.payload:
-            encoded_payload += "\\x%02x" % ord(c)
+            encoded_payload += "\\x%02x" % c
 
         fmt_args = dict()
         fmt_args["raw_payload"] = encoded_payload

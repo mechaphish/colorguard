@@ -13,7 +13,7 @@ def test_cromu_00070_caching():
     # from the cache.
 
     for _ in range(2):
-        payload = "06000006020a00000000000000000000000c030c00000100e1f505000000000000eb".decode('hex')
+        payload = bytes.fromhex("06000006020a00000000000000000000000c030c00000100e1f505000000000000eb")
         cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/CROMU_00070"), payload)
 
         pov = cg.attempt_exploit()
@@ -22,7 +22,7 @@ def test_cromu_00070_caching():
 
 def run_all():
     functions = globals()
-    all_functions = dict(filter((lambda (k, v): k.startswith('test_')), functions.items()))
+    all_functions = dict(filter((lambda kv: kv[0].startswith('test_')), functions.items()))
     for f in sorted(all_functions.keys()):
         if hasattr(all_functions[f], '__call__'):
             all_functions[f]()
