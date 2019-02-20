@@ -7,7 +7,7 @@ import os
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
 def test_simple_chall_resp():
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/CUSTM_00022"), b'\xa0\x9d\x9a\x35AA')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/CUSTM_00022"), b'\xa0\x9d\x9a\x35AA')
 
     nose.tools.assert_true(cg.causes_leak())
     pov = cg.attempt_pov()
@@ -15,7 +15,7 @@ def test_simple_chall_resp():
 
 
 def test_fast_avoid_solves():
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/chall_resp_leak2"), b'Zw\xd4V')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/chall_resp_leak2"), b'Zw\xd4V')
 
     nose.tools.assert_true(cg.causes_leak())
     pov = cg.attempt_pov()

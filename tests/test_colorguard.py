@@ -11,7 +11,7 @@ def test_simple_leak1():
     Test detection of one of the simplest possible leaks.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak1'), b'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak1'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -22,7 +22,7 @@ def test_simple_leak2():
     Test detection of a leak where multiple arithmetic operations are performed on flag page data.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak2'), b'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak2'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -33,7 +33,7 @@ def test_simple_leak3():
     Test detection of a leak where bytes leaked through different calls to transmit.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak3'), b'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak3'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -44,7 +44,7 @@ def test_simple_leak4():
     Test detection of a leak where bytes leaked through different calls to transmit and operations are done to those bytes.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak4'), b'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak4'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -55,7 +55,7 @@ def test_simple_leak5():
     Test detection of a leak where individual bits of the flag are leaked out
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/simple_leak5'), b'\x00' * 0x20)
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak5'), b'\x00' * 0x20)
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -66,7 +66,7 @@ def test_choose_leak():
     Test colorguard choosing the correct flag page bytes must be reversed.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/choose_leak'), b'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/choose_leak'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -78,7 +78,7 @@ def test_big_leak():
     This used to cause a bug because of limits placed on how much data could be loaded from a SymbolicMemoryRegion.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/i386/big_leak'), b'foobar')
+    cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/big_leak'), b'foobar')
 
     pov = cg.attempt_exploit()
     nose.tools.assert_not_equal(pov, None)
@@ -147,7 +147,7 @@ def test_dumb_leaking():
     Test the ability to quickly exploit really simple leaks.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/random_flag"), b"foobar")
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/random_flag"), b"foobar")
 
     nose.tools.assert_true(cg.causes_dumb_leak())
     pov = cg.attempt_dumb_pov()
@@ -158,7 +158,7 @@ def test_hex_leaking():
     Test the ability to exploit a dumb leak of hex encoded flag data.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/hex_leak"), b"foobar")
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/hex_leak"), b"foobar")
 
     nose.tools.assert_true(cg.causes_dumb_leak())
     pov = cg.attempt_exploit()
@@ -169,7 +169,7 @@ def test_atoi_leaking():
     Test the ability to exploit a dumb leak of hex encoded flag data.
     """
 
-    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/i386/atoi_leak"), b"foobar")
+    cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/atoi_leak"), b"foobar")
 
     nose.tools.assert_true(cg.causes_dumb_leak())
     pov = cg.attempt_exploit()
