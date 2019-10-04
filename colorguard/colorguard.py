@@ -391,7 +391,7 @@ class ColorGuard(object):
         # Create the preconstrainer plugin
         state.register_plugin('preconstrainer', SimStatePreconstrainer())
         state.preconstrainer.preconstrain_flag_page(self._runner.magic)
-        state.preconstrainer.preconstrain_file(self.payload, state.posix.stdin)
+        state.preconstrainer.preconstrain_file(state.posix.stdin, self.payload)
 
         # Set up zen
         ZenPlugin.prep_tracer(state)
