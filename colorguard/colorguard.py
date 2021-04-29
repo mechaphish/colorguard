@@ -384,7 +384,7 @@ class ColorGuard(object):
 
         # Make our own special posix
         state.register_plugin('posix', SimSystemPosix(
-            stdin=SimFileStream('stdin', ident='aeg_stdin'), # we do tests against the name of the variable...
+            stdin=SimFileStream('stdin', ident='aeg_input_stdin'), # we do tests against the name of the variable...
             stdout=SimFileStream('stdout'),
             stderr=SimFileStream('stderr')))
 
