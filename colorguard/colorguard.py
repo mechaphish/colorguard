@@ -16,8 +16,8 @@ from angr.storage.file import SimFileStream
 
 from rex.exploit.cgc import CGCExploit
 
-from .harvester import Harvester
 from .pov import ColorguardExploit, ColorguardNaiveExploit, ColorguardNaiveHexExploit, ColorguardNaiveAtoiExploit
+from .harvester import Harvester
 
 l = logging.getLogger("colorguard.ColorGuard")
 

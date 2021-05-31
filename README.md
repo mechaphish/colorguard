@@ -14,3 +14,5 @@ True
 >>> pov.dump_c('leak.c') # they can be dumped just like Rex POVs too
 >>> pov.dump_binary('leak.pov')
 ```
+
+`pip install .` or `python setup.py install` should install it correctly.
