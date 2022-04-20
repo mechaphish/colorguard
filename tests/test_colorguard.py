@@ -1,4 +1,3 @@
-import nose
 import logging
 import colorguard
 
@@ -14,8 +13,8 @@ def test_simple_leak1():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak1'), b'foobar')
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_simple_leak2():
     """
@@ -25,8 +24,8 @@ def test_simple_leak2():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak2'), b'foobar')
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_simple_leak3():
     """
@@ -36,8 +35,8 @@ def test_simple_leak3():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak3'), b'foobar')
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_simple_leak4():
     """
@@ -47,8 +46,8 @@ def test_simple_leak4():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak4'), b'foobar')
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_simple_leak5():
     """
@@ -58,8 +57,8 @@ def test_simple_leak5():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/simple_leak5'), b'\x00' * 0x20)
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_choose_leak():
     """
@@ -69,8 +68,8 @@ def test_choose_leak():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/choose_leak'), b'foobar')
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_big_leak():
     """
@@ -81,8 +80,8 @@ def test_big_leak():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/big_leak'), b'foobar')
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_double_leak():
     """
@@ -96,8 +95,8 @@ def test_double_leak():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_caching():
     """
@@ -108,14 +107,14 @@ def test_caching():
     cg1 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     # of course run the thing and makes sure it works
-    nose.tools.assert_true(cg1.causes_leak())
+    assert cg1.causes_leak()
 
     cg2 = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     # and insure the cache-loaded version still works
-    nose.tools.assert_true(cg2.causes_leak())
+    assert cg2.causes_leak()
     pov = cg2.attempt_pov()
-    nose.tools.assert_true(pov.test_binary())
+    assert pov.test_binary()
 
 def test_leak_no_exit():
     """
@@ -128,8 +127,8 @@ def test_leak_no_exit():
     cg = colorguard.ColorGuard(os.path.join(bin_location, 'tests/cgc/PIZZA_00001'), payload)
 
     pov = cg.attempt_exploit()
-    nose.tools.assert_not_equal(pov, None)
-    nose.tools.assert_true(pov.test_binary())
+    assert pov is not None
+    assert pov.test_binary()
 
 def test_concrete_difference_filtering():
     """
@@ -139,8 +138,8 @@ def test_concrete_difference_filtering():
     payload = bytes.fromhex("313131313131313131313131313131310a")
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/CROMU_00070"), payload)
 
-    nose.tools.assert_false(cg.causes_leak())
-    nose.tools.assert_true(cg._no_concrete_difference)
+    assert not cg.causes_leak()
+    assert cg._no_concrete_difference
 
 def test_dumb_leaking():
     """
@@ -149,9 +148,9 @@ def test_dumb_leaking():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/random_flag"), b"foobar")
 
-    nose.tools.assert_true(cg.causes_dumb_leak())
+    assert cg.causes_dumb_leak()
     pov = cg.attempt_dumb_pov()
-    nose.tools.assert_true(pov.test_binary())
+    assert pov.test_binary()
 
 def test_hex_leaking():
     """
@@ -160,9 +159,9 @@ def test_hex_leaking():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/hex_leak"), b"foobar")
 
-    nose.tools.assert_true(cg.causes_dumb_leak())
+    assert cg.causes_dumb_leak()
     pov = cg.attempt_exploit()
-    nose.tools.assert_true(pov.test_binary())
+    assert pov.test_binary()
 
 def test_atoi_leaking():
     """
@@ -171,9 +170,9 @@ def test_atoi_leaking():
 
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/atoi_leak"), b"foobar")
 
-    nose.tools.assert_true(cg.causes_dumb_leak())
+    assert cg.causes_dumb_leak()
     pov = cg.attempt_exploit()
-    nose.tools.assert_true(pov.test_binary())
+    assert pov.test_binary()
 
 def run_all():
     functions = globals()
