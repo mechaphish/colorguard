@@ -1,5 +1,3 @@
-import nose
-from nose.plugins.attrib import attr
 import logging
 import colorguard
 
@@ -7,7 +5,6 @@ import os
 
 bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../binaries'))
 
-@attr(speed='slow')
 def test_cromu_00070_caching():
     # Test exploitation of CROMU_00070 given an input which causes a leak. Then test that we can do it again restoring
     # from the cache.
@@ -17,8 +14,10 @@ def test_cromu_00070_caching():
         cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/CROMU_00070"), payload)
 
         pov = cg.attempt_exploit()
-        nose.tools.assert_not_equal(pov, None)
-        nose.tools.assert_true(pov.test_binary())
+        assert pov is not None
+        assert pov.test_binary()
+
+test_cromu_00070_caching.speed = 'slow'
 
 def run_all():
     functions = globals()
