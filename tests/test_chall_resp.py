@@ -1,4 +1,3 @@
-import nose
 import logging
 import colorguard
 
@@ -9,17 +8,17 @@ bin_location = str(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..
 def test_simple_chall_resp():
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/CUSTM_00022"), b'\xa0\x9d\x9a\x35AA')
 
-    nose.tools.assert_true(cg.causes_leak())
+    assert cg.causes_leak()
     pov = cg.attempt_pov()
-    nose.tools.assert_true(pov.test_binary())
+    assert pov.test_binary()
 
 
 def test_fast_avoid_solves():
     cg = colorguard.ColorGuard(os.path.join(bin_location, "tests/cgc/chall_resp_leak2"), b'Zw\xd4V')
 
-    nose.tools.assert_true(cg.causes_leak())
+    assert cg.causes_leak()
     pov = cg.attempt_pov()
-    nose.tools.assert_true(pov.test_binary())
+    assert pov.test_binary()
 
 def run_all():
     functions = globals()
