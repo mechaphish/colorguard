@@ -47,7 +47,8 @@ class ColorGuard(object):
 
         # load the binary
         self.project = angr.Project(binary)
-        self.project.simos.syscall_library.update(angr.SIM_LIBRARIES['cgcabi_tracer'])
+        simlib = angr.SIM_LIBRARIES['cgcabi_tracer']
+        self.project.simos.syscall_library.update(simlib[0] if isinstance(simlib, list) else simlib)
 
         # set up the state for analysis
         remove_options = {angr.options.SUPPORT_FLOATING_POINT}
