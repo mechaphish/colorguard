@@ -69,7 +69,7 @@ class Harvester(object):
         # extra work here because we need to be confident about the bytes
 
         ss = self.state.copy()
-        ss.add_constraints(self.minimized_ast == ss.solver.BVV(ss.solver.eval(self.minimized_ast, cast_to=bytes)))
+        ss.add_constraints(self.minimized_ast == claripy.BVV(ss.solver.eval(self.minimized_ast, cast_to=bytes)))
 
         leaked_bytes = [ ]
         for byte in self.possibly_leaked_bytes:
