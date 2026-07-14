@@ -6,7 +6,6 @@ import logging
 from itertools import groupby
 import binascii
 
-import claripy
 import angr
 
 from angr.state_plugins.trace_additions import ChallRespInfo, ZenPlugin
@@ -309,7 +308,7 @@ class ColorGuard(object):
 
         harvester = Harvester(simplified, st.copy(), flag_bytes)
 
-        output_var = claripy.BVS('output_var', harvester.minimized_ast.size(), explicit_name=True) #pylint:disable=no-member
+        output_var = angr.claripy.BVS('output_var', harvester.minimized_ast.size(), explicit_name=True) #pylint:disable=no-member
 
         st.add_constraints(harvester.minimized_ast == output_var)
 
