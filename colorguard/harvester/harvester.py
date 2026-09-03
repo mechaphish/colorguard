@@ -1,4 +1,4 @@
-import claripy
+from angr import claripy
 from itertools import groupby
 from operator import itemgetter
 
